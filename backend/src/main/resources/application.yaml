@@ -1,3 +1,17 @@
 spring:
   application:
-    name: demo
+    name: NutirGuideAI
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/nutriguide_ai
+    username: root
+    password: root
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  server:
+    port: 8080
+
