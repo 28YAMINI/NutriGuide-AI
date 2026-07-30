@@ -1,4 +1,4 @@
 package com.nutriguideai.dto;
 
-public class LoginRequest {
+public class AuthResponse {
 }

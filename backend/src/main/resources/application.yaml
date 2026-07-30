@@ -1,3 +1,6 @@
+server:
+  port: 8081
+
 spring:
   application:
     name: NutirGuideAI
@@ -12,6 +15,9 @@ spring:
       ddl-auto: update
     show-sql: true
 
-  server:
-    port: 8080
+  jwt:
+    secret: your-base64-secret
+    expiration-ms: 86400000
+
+
 
