@@ -1,5 +1,8 @@
 package com.nutriguideai.entity;
 
+import com.nutriguideai.enums.ActivityLevel;
+import com.nutriguideai.enums.Gender;
+import com.nutriguideai.enums.Goal;
 import com.nutriguideai.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
@@ -35,8 +38,9 @@ public class User {
     @Column(nullable = false)
     private Integer age;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
-    private String gender;
+    private Gender gender;
 
     @Column(nullable = false)
     private Double height;
@@ -44,9 +48,11 @@ public class User {
     @Column(nullable = false)
     private Double weight;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "activity_level", nullable = false, length = 20)
-    private String activityLevel;
+    private ActivityLevel activityLevel;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private String goal;
+    private Goal goal;
 }

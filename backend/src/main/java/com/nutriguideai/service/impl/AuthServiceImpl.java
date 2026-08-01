@@ -1,12 +1,15 @@
 package com.nutriguideai.service.impl;
 
+import com.nutriguideai.dto.request.LoginRequest;
 import com.nutriguideai.dto.request.RegisterRequest;
+import com.nutriguideai.dto.response.LoginResponse;
 import com.nutriguideai.dto.response.RegisterResponse;
 import com.nutriguideai.entity.User;
 import com.nutriguideai.enums.Role;
 import com.nutriguideai.exception.InvalidCredentialsException;
 import com.nutriguideai.exception.UserAlreadyExistsException;
 import com.nutriguideai.repository.UserRepository;
+import com.nutriguideai.security.JwtTokenProvider;
 import com.nutriguideai.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
