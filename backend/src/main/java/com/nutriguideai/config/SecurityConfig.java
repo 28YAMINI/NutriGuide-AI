@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -53,6 +54,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/*").hasRole("ADMIN")
                         // Everything else requires a valid login
                         .anyRequest().authenticated()
+                        //Food APIs
+                        .requestMatchers(HttpMethod.GET, "/api/foods/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/foods/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/foods/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/foods/**").hasRole("ADMIN")
+
+                        //Everything else requires authentication
+                        .anyRequest().authenticated()
                 )
 
                 // 4. Uniform 401 JSON when an unauthenticated request hits a protected route
@@ -67,7 +76,6 @@ public class SecurityConfig {
                             );
                         }
                 ))
-
                 // 5. Our JWT filter runs BEFORE Spring's default username/password filter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
