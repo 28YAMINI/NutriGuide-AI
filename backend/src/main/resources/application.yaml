@@ -15,9 +15,7 @@ spring:
       ddl-auto: update
     show-sql: true
 
+app:
   jwt:
-    secret: your-base64-secret
+    secret: ThisIsASecretKeyForJwtAuthentication12345678901234567890
     expiration-ms: 86400000
-
-
-

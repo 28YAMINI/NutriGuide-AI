@@ -1,6 +1,5 @@
 package com.nutriguideai.security;
 
-
 import com.nutriguideai.enums.Role;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -19,53 +18,43 @@ public class JwtTokenProvider {
     private final SecretKey secretKey;
     private final long expirationMs;
 
-    /**
-     * Constructor injection of config values.
-     * The secret is converted into an HMAC key once, at startup — not on every request.
-     */
     public JwtTokenProvider(
             @Value("${app.jwt.secret}") String secret,
             @Value("${app.jwt.expiration-ms}") long expirationMs) {
+
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
     }
 
     /**
-     * Builds and signs a JWT.
-     * - subject  = email (the user's stable identity)
-     * - claim    = role (drives hasRole() authorization)
-     * - issuedAt = now, expiration = now + configured TTL
+     * Generate JWT token.
      */
     public String generateToken(String email, Role role) {
+
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .subject(email)
                 .claim("role", role.name())
                 .issuedAt(now)
-                .expiration(expiry)
-                .signWith(secretKey, Jwts.SIG.HS256)
+                .expiration(new Date(now.getTime() + expirationMs))
+                .signWith(secretKey)
                 .compact();
     }
 
-    /** Extracts the subject (email) — used by the filter to find the user. */
+    /**
+     * Extract email from token.
+     */
     public String getEmailFromToken(String token) {
-        return parseClaims(token).getSubject();
-    }
-
-    /** Extracts the expiration — useful for debugging and tests. */
-    public Date getExpirationFromToken(String token) {
-        return parseClaims(token).getExpiration();
+        return getClaims(token).getSubject();
     }
 
     /**
-     * Validates signature + expiration without throwing.
-     * Returns false for tampered, malformed, or expired tokens.
+     * Check whether token is valid.
      */
     public boolean isValidToken(String token) {
         try {
-            parseClaims(token);
+            getClaims(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             return false;
@@ -73,11 +62,9 @@ public class JwtTokenProvider {
     }
 
     /**
-     * The single parsing path — every public method funnels through here.
-     * verifyWith() checks the HMAC signature; parseSignedClaims() throws
-     * JwtException if the token is invalid or expired.
+     * Parse JWT claims.
      */
-    private Claims parseClaims(String token) {
+    private Claims getClaims(String token) {
         return Jwts.parser()
                 .verifyWith(secretKey)
                 .build()

@@ -1,7 +1,5 @@
 package com.nutriguideai.config;
 
-
-
 import com.nutriguideai.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -30,17 +28,16 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
         http
-                // 1. No CSRF — we are stateless (no cookies to protect)
                 .csrf(csrf -> csrf.disable())
 
-                // 2. No server-side sessions — every request is authenticated by JWT
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // 3. Authorization rules — first match wins, read top to bottom
                 .authorizeHttpRequests(auth -> auth
-                        // Public: auth endpoints + Swagger UI
+
+                        // Public APIs
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/swagger-ui/**",
@@ -48,36 +45,41 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/error"
                         ).permitAll()
-                        // Self-service profile — any authenticated user
-                        .requestMatchers("/api/users/me").authenticated()
-                        // ID-based admin operations — ADMIN role only
-                        .requestMatchers("/api/users/*").hasRole("ADMIN")
-                        // Everything else requires a valid login
-                        .anyRequest().authenticated()
-                        //Food APIs
+
+                        // Food APIs
                         .requestMatchers(HttpMethod.GET, "/api/foods/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/foods/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/foods/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/foods/**").hasRole("ADMIN")
 
-                        //Everything else requires authentication
+                        // User APIs
+                        .requestMatchers("/api/users/me").authenticated()
+                        .requestMatchers("/api/users/*").hasRole("ADMIN")
+
+                        // Everything else
                         .anyRequest().authenticated()
                 )
 
-                // 4. Uniform 401 JSON when an unauthenticated request hits a protected route
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(
                         (request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+
                             response.getWriter().write(
-                                    "{\"status\":401,\"error\":\"Unauthorized\"," +
-                                            "\"message\":\"Authentication is required\"}"
+                                    """
+                                    {
+                                      "status":401,
+                                      "error":"Unauthorized",
+                                      "message":"Authentication is required"
+                                    }
+                                    """
                             );
                         }
                 ))
-                // 5. Our JWT filter runs BEFORE Spring's default username/password filter
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+                .addFilterBefore(jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

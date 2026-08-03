@@ -53,10 +53,6 @@ public class UserServiceImpl implements UserService {
         return UserResponse.fromEntity(user);
     }
 
-    @Override
-    public UserResponse updateUser(Long id, UpdateUserRequest request) {
-        return null;
-    }
 
     @Override
     @Transactional
