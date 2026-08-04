@@ -1,3 +1,21 @@
+server:
+  port: 8081
+
 spring:
   application:
-    name: demo
+    name: NutirGuideAI
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/nutriguide_ai
+    username: root
+    password: root
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+app:
+  jwt:
+    secret: ThisIsASecretKeyForJwtAuthentication12345678901234567890
+    expiration-ms: 86400000
