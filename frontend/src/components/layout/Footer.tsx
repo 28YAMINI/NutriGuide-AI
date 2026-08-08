@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 
+import { Leaf } from 'lucide-react'
 
 import { useAuth } from '../../hooks/useAuth'
 import { routePaths } from '../../routes/routePaths'
-import { LeafIcon } from 'lucide-react'
 
 const PRODUCT_LINKS = [
   { to: routePaths.foods, label: 'Foods' },
@@ -12,16 +12,21 @@ const PRODUCT_LINKS = [
 ] as const
 
 const COMPANY_LINKS = [
-  { to: routePaths.home, label: 'Home' },
-  { to: routePaths.login, label: 'Sign in' },
-  { to: routePaths.register, label: 'Register' },
+  { to: routePaths.about, label: 'About' },
+  { to: routePaths.contact, label: 'Contact' },
+] as const
+
+const LEGAL_LINKS = [
+  { to: routePaths.home, label: 'Privacy Policy' },
+  { to: routePaths.home, label: 'Terms of Service' },
 ] as const
 
 /**
  * Global footer.
  *
- * Only the CTA is auth-aware: signed-out visitors are pushed to
- * register, signed-in users are pointed back to the dashboard.
+ * Matches the Navbar's design language (flat background, plain logo).
+ * The CTA is auth-aware: signed-out visitors get "Get started",
+ * signed-in visitors get "Go to dashboard".
  */
 export function Footer() {
   const { isAuthenticated } = useAuth()
@@ -29,87 +34,85 @@ export function Footer() {
   return (
     <footer className="border-t border-border bg-background">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           {/* Brand */}
-          <div className="lg:col-span-2">
+          <div className="max-w-sm">
             <Link
               to={routePaths.home}
-              className="inline-flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="flex items-center gap-2 font-semibold text-foreground"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <LeafIcon className="h-4 w-4" />
-              </span>
-              <span className="text-base font-semibold tracking-tight">
-                NutriGuide<span className="text-primary">AI</span>
-              </span>
+              <Leaf className="h-5 w-5 text-primary" />
+              <span>NutriGuideAI</span>
             </Link>
-
-            <p className="mt-4 max-w-sm text-sm text-muted-foreground">
-              Personalized meal plans built around your health profile,
-              goals, lifestyle, and budget.
+            <p className="mt-3 text-sm text-muted-foreground">
+              Personalized, evidence-informed nutrition guidance built
+              around your health goals.
             </p>
+            <Link
+              to={
+                isAuthenticated ? routePaths.dashboard : routePaths.register
+              }
+              className="mt-4 inline-flex rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {isAuthenticated ? 'Go to dashboard' : 'Get started'}
+            </Link>
+          </div>
 
-            <div className="mt-6">
-              {isAuthenticated ? (
-                <Link
-                  to={routePaths.dashboard}
-                  className="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  Go to dashboard
-                </Link>
-              ) : (
-                <Link
-                  to={routePaths.register}
-                  className="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  Get started — it&apos;s free
-                </Link>
-              )}
+          {/* Link columns */}
+          <div className="grid grid-cols-2 gap-10 sm:grid-cols-3">
+            <div>
+              <h3 className="text-sm font-semibold">Product</h3>
+              <ul className="mt-3 space-y-2">
+                {PRODUCT_LINKS.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      to={link.to}
+                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
-          </div>
 
-          {/* Product */}
-          <div>
-            <h2 className="text-sm font-semibold">Product</h2>
-            <ul className="mt-4 space-y-3">
-              {PRODUCT_LINKS.map((link) => (
-                <li key={link.to}>
-                  <Link
-                    to={link.to}
-                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+            <div>
+              <h3 className="text-sm font-semibold">Company</h3>
+              <ul className="mt-3 space-y-2">
+                {COMPANY_LINKS.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      to={link.to}
+                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          {/* Company */}
-          <div>
-            <h2 className="text-sm font-semibold">Company</h2>
-            <ul className="mt-4 space-y-3">
-              {COMPANY_LINKS.map((link) => (
-                <li key={link.to}>
-                  <Link
-                    to={link.to}
-                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <div>
+              <h3 className="text-sm font-semibold">Legal</h3>
+              <ul className="mt-3 space-y-2">
+                {LEGAL_LINKS.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      to={link.to}
+                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 sm:flex-row">
-          <p className="text-xs text-muted-foreground">
+        <div className="mt-10 border-t border-border pt-6">
+          <p className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} NutriGuide AI. All rights reserved.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Built for healthier habits.
           </p>
         </div>
       </div>

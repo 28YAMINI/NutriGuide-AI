@@ -1,25 +1,21 @@
 import { Route, Routes } from 'react-router-dom'
 
-import { MainLayout } from '../components/layout/MainLayout'
+
+
 import { AdminRoute, ProtectedRoute, PublicRoute } from './guards'
 import { routePaths } from './routePaths'
-
-/**
- * Lightweight stand-in for the real page components (Phase 4).
- * Keeps routing wired and testable without blocking on page work.
- */
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="flex min-h-[60vh] items-center justify-center px-6">
-      <div className="mx-auto max-w-md text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          This page is under construction.
-        </p>
-      </div>
-    </div>
-  )
-}
+import { MainLayout } from '../components/layout/MainLayout'
+import { HomePage } from '../pages/Home/HomePage'
+import { FoodsPage } from '../pages/Home/Login/Register/Dashboard/Foods/FoodPages'
+import { FoodDetailsPage } from '../pages/Home/Login/Register/Dashboard/Foods/FoodDetails/FoodDetailsPage'
+import { AboutPage } from '../pages/Home/Login/Register/Dashboard/Foods/FoodDetails/Profile/About/AboutPage'
+import { LoginPage } from '../pages/Home/Login/LoginPage'
+import { DashboardPage } from '../pages/Home/Login/Register/Dashboard/DashboardPage'
+import { RegisterPage } from '../pages/Home/Login/Register/RegisterPage'
+import { NotFoundPage } from '../pages/Home/Login/Register/Dashboard/Foods/FoodDetails/Profile/About/Contact/Admin/NotFound/NotFoundPage'
+import { AdminPage } from '../pages/Home/Login/Register/Dashboard/Foods/FoodDetails/Profile/About/Contact/Admin/AdminPage'
+import { ContactPage } from '../pages/Home/Login/Register/Dashboard/Foods/FoodDetails/Profile/About/Contact/ContactPage'
+import { ProfilePage } from '../pages/Home/Login/Register/Dashboard/Foods/FoodDetails/Profile/ProfilePage'
 
 /**
  * Defines the application's route configuration.
@@ -33,22 +29,18 @@ export default function AppRoutes() {
     <Routes>
       <Route element={<MainLayout />}>
         {/* Public */}
-        <Route path={routePaths.home} element={<PlaceholderPage title="Home" />} />
-        <Route path={routePaths.foods} element={<PlaceholderPage title="Foods" />} />
-        <Route
-          path={routePaths.foodDetails}
-          element={<PlaceholderPage title="Food Details" />}
-        />
-        <Route path={routePaths.about} element={<PlaceholderPage title="About" />} />
-        <Route
-          path={routePaths.contact}
-          element={<PlaceholderPage title="Contact" />}
-        />
+        <Route path={routePaths.home} element={<HomePage />} />
+        <Route path={routePaths.foods} element={<FoodsPage />} />
+        <Route path={routePaths.foodDetails} element={<FoodDetailsPage />} />
+        <Route path={routePaths.about} element={<AboutPage />} />
+        <Route path={routePaths.contact} element={<ContactPage />} />
+
+        {/* Auth (signed-out only) */}
         <Route
           path={routePaths.login}
           element={
             <PublicRoute>
-              <PlaceholderPage title="Login" />
+              <LoginPage />
             </PublicRoute>
           }
         />
@@ -56,33 +48,41 @@ export default function AppRoutes() {
           path={routePaths.register}
           element={
             <PublicRoute>
-              <PlaceholderPage title="Register" />
+              <RegisterPage />
             </PublicRoute>
           }
         />
 
-        {/* Protected */}
+        {/* Protected (signed-in only) */}
         <Route
           path={routePaths.dashboard}
           element={
             <ProtectedRoute>
-              <PlaceholderPage title="Dashboard" />
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={routePaths.profile}
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
             </ProtectedRoute>
           }
         />
 
-        {/* Admin */}
+        {/* Admin (ADMIN role only) */}
         <Route
           path={routePaths.admin}
           element={
             <AdminRoute>
-              <PlaceholderPage title="Admin" />
+              <AdminPage />
             </AdminRoute>
           }
         />
 
-        {/* Fallback */}
-        <Route path="*" element={<PlaceholderPage title="Page not found" />} />
+        {/* Fallback — must stay last */}
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
   )

@@ -4,7 +4,13 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../hooks/useTheme'
 import { routePaths } from '../../routes/routePaths'
-import { LeafIcon, MenuIcon, MoonIcon, SunIcon } from 'lucide-react'
+import {
+  Leaf as LeafIcon,
+  Menu as MenuIcon,
+  Moon as MoonIcon,
+  Sun as SunIcon,
+  X as CloseIcon,
+} from 'lucide-react'
 
 const NAV_LINKS = [
   { to: routePaths.home, label: 'Home' },
@@ -27,8 +33,7 @@ export function Navbar() {
   const location = useLocation()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
-  // Close the mobile menu whenever the route changes — link clicks,
-  // browser back, etc. — so it never lingers over the new page.
+  // Close the mobile menu whenever the route changes.
   useEffect(() => {
     setIsMenuOpen(false)
   }, [location.pathname])
@@ -45,22 +50,15 @@ export function Navbar() {
     : ''
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
-      <nav
-        aria-label="Main navigation"
-        className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8"
-      >
+    <header className="border-b border-border bg-background">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link
           to={routePaths.home}
-          className="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="flex items-center gap-2 font-semibold text-foreground"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <LeafIcon className="h-4 w-4" />
-          </span>
-          <span className="text-base font-semibold tracking-tight">
-            NutriGuide<span className="text-primary">AI</span>
-          </span>
+          <LeafIcon className="h-5 w-5 text-primary" />
+          <span>NutriGuideAI</span>
         </Link>
 
         {/* Desktop nav links */}
@@ -84,10 +82,13 @@ export function Navbar() {
 
         {/* Right-side actions */}
         <div className="flex items-center gap-2">
+          {/* Theme toggle */}
           <button
             type="button"
             onClick={toggleTheme}
-            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label={
+              isDark ? 'Switch to light mode' : 'Switch to dark mode'
+            }
             className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             {isDark ? <SunIcon /> : <MoonIcon />}
@@ -105,12 +106,14 @@ export function Navbar() {
                     Admin
                   </NavLink>
                 )}
+
                 <NavLink
                   to={routePaths.dashboard}
                   className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Dashboard
                 </NavLink>
+
                 <Link
                   to={routePaths.dashboard}
                   title={`Signed in as ${user?.firstName} ${user?.lastName}`}
@@ -118,6 +121,7 @@ export function Navbar() {
                 >
                   {initials}
                 </Link>
+
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -134,6 +138,7 @@ export function Navbar() {
                 >
                   Sign in
                 </Link>
+
                 <Link
                   to={routePaths.register}
                   className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
@@ -213,6 +218,7 @@ export function Navbar() {
                   >
                     Sign in
                   </Link>
+
                   <Link
                     to={routePaths.register}
                     className="rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
