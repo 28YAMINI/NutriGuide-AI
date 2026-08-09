@@ -9,6 +9,7 @@ import {
   Wallet,
 } from 'lucide-react'
 
+import { buttonClassName } from '../../components/ui/Button'
 import { useAuth } from '../../hooks/useAuth'
 import { routePaths } from '../../routes/routePaths'
 
@@ -68,7 +69,7 @@ export function HomePage() {
   const { isAuthenticated } = useAuth()
 
   return (
-    <div>
+    <main>
       {/* Hero */}
       <section className="relative overflow-hidden">
         {/* Decorative blurred blob — theme-token driven */}
@@ -91,13 +92,13 @@ export function HomePage() {
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
               to={isAuthenticated ? routePaths.dashboard : routePaths.register}
-              className="w-full rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:w-auto"
+              className={buttonClassName('primary', 'md', 'w-full sm:w-auto')}
             >
               {isAuthenticated ? 'Go to dashboard' : 'Get started — it’s free'}
             </Link>
             <Link
               to={routePaths.foods}
-              className="w-full rounded-lg border border-border bg-background px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-auto"
+              className={buttonClassName('outline', 'md', 'w-full sm:w-auto')}
             >
               Explore foods
             </Link>
@@ -123,7 +124,7 @@ export function HomePage() {
               className="rounded-2xl border border-border bg-card p-6 transition-shadow hover:shadow-md"
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <feature.icon className="h-5 w-5" />
+                <feature.icon aria-hidden="true" className="h-5 w-5" />
               </span>
               <h3 className="mt-4 font-semibold">{feature.title}</h3>
               <p className="mt-1.5 text-sm text-muted-foreground">
@@ -159,11 +160,11 @@ export function HomePage() {
         </p>
         <Link
           to={isAuthenticated ? routePaths.dashboard : routePaths.register}
-          className="mt-8 inline-flex rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          className={buttonClassName('primary', 'lg', 'mt-8')}
         >
           {isAuthenticated ? 'Open your dashboard' : 'Create your free account'}
         </Link>
       </section>
-    </div>
+    </main>
   )
 }

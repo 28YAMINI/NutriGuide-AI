@@ -1,115 +1,17 @@
 import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 
-import { Pencil, X } from 'lucide-react'
+import { Pencil, Save, User as UserIcon } from 'lucide-react'
 import type { ActivityLevel, Gender, Goal, UpdateUserRequest, UserResponse } from '../../../../../../../../types/user'
-import { userService } from '../../../../../../../../services/userService'
 import { useAuth } from '../../../../../../../../hooks/useAuth'
-import { Spinner } from '../../../../../../../../components/common/Spinner'
-
-
-
-
-/* ---------- shared form helpers ---------- */
-
-const INPUT_CLASSES =
-  'w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60'
-
-interface FieldProps {
-  label: string
-  htmlFor: string
-  error?: string
-  children: ReactNode
-}
-
-function Field({ label, htmlFor, error, children }: FieldProps) {
-  return (
-    <div className="space-y-1.5">
-      <label htmlFor={htmlFor} className="block text-sm font-medium text-foreground">
-        {label}
-      </label>
-      {children}
-      {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  )
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) {
-    return error.message
-  }
-  return 'Something went wrong. Please try again.'
-}
-
-/* ---------- option / label constants ---------- */
-
-const GENDER_LABELS: Record<Gender, string> = {
-  MALE: 'Male',
-  FEMALE: 'Female',
-  OTHER: 'Other',
-}
-
-const GENDER_OPTIONS = Object.entries(GENDER_LABELS).map(([value, label]) => ({
-  value: value as Gender,
-  label,
-}))
-
-const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
-  SEDENTARY: 'Sedentary',
-  LIGHT: 'Lightly active',
-  MODERATE: 'Moderately active',
-  ACTIVE: 'Active',
-  VERY_ACTIVE: 'Very active',
-}
-
-const ACTIVITY_OPTIONS: ReadonlyArray<{ value: ActivityLevel; label: string }> = [
-  { value: 'SEDENTARY', label: 'Sedentary (little or no exercise)' },
-  { value: 'LIGHT', label: 'Light (1–2 days/week)' },
-  { value: 'MODERATE', label: 'Moderate (3–5 days/week)' },
-  { value: 'ACTIVE', label: 'Active (6–7 days/week)' },
-  { value: 'VERY_ACTIVE', label: 'Very active (intense daily exercise)' },
-]
-
-const GOAL_LABELS: Record<Goal, string> = {
-  LOSE_WEIGHT: 'Lose weight',
-  GAIN_WEIGHT: 'Gain weight',
-  MAINTAIN_WEIGHT: 'Maintain weight',
-}
-
-const GOAL_OPTIONS = Object.entries(GOAL_LABELS).map(([value, label]) => ({
-  value: value as Goal,
-  label,
-}))
-
-/* ---------- small helpers ---------- */
-
-function initials(user: UserResponse): string {
-  return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
-}
-
-/** WHO classification for adult BMI values. */
-function bmiCategory(bmi: number): string {
-  if (bmi < 18.5) return 'Underweight'
-  if (bmi < 25) return 'Healthy range'
-  if (bmi < 30) return 'Overweight'
-  return 'Obese'
-}
-
-function bmiSummary(profile: UserResponse): string {
-  const heightM = profile.height / 100
-  if (heightM <= 0 || profile.weight <= 0) {
-    return '—'
-  }
-  const bmi = profile.weight / (heightM * heightM)
-  return `${bmi.toFixed(1)} · ${bmiCategory(bmi)}`
-}
-
-/* ---------- form ---------- */
+import { userService } from '../../../../../../../../services/userService'
+import { PageState } from '../../../../../../../../components/ui/PageState'
+import { routePaths } from '../../../../../../../../routes/routePaths'
+import { Button } from '../../../../../../../../components/ui/Button'
+import { Alert } from '../../../../../../../../components/ui/Alert'
+import { Card } from '../../../../../../../../components/ui/Card'
+import { Field, INPUT_CLASSES } from '../../../../../../../../components/ui/Field'
 
 interface ProfileFormValues {
   firstName: string
@@ -122,416 +24,372 @@ interface ProfileFormValues {
   goal: Goal | ''
 }
 
-interface ProfileFormProps {
-  initialValues: ProfileFormValues
-  onCancel: () => void
-  onSaved: (updated: UserResponse) => void
+const EMPTY_FORM: ProfileFormValues = {
+  firstName: '',
+  lastName: '',
+  age: '',
+  gender: '',
+  height: '',
+  weight: '',
+  activityLevel: '',
+  goal: '',
 }
 
-function ProfileForm({ initialValues, onCancel, onSaved }: ProfileFormProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
+const GENDER_OPTIONS: ReadonlyArray<{ value: Gender; label: string }> = [
+  { value: 'MALE', label: 'Male' },
+  { value: 'FEMALE', label: 'Female' },
+  { value: 'OTHER', label: 'Other' },
+]
+
+const ACTIVITY_OPTIONS: ReadonlyArray<{ value: ActivityLevel; label: string }> = [
+  { value: 'SEDENTARY', label: 'Sedentary (little or no exercise)' },
+  { value: 'LIGHT', label: 'Light (1–2 days/week)' },
+  { value: 'MODERATE', label: 'Moderate (3–5 days/week)' },
+  { value: 'ACTIVE', label: 'Active (6–7 days/week)' },
+  { value: 'VERY_ACTIVE', label: 'Very active (intense daily exercise)' },
+]
+
+const GOAL_OPTIONS: ReadonlyArray<{ value: Goal; label: string }> = [
+  { value: 'LOSE_WEIGHT', label: 'Lose weight' },
+  { value: 'GAIN_WEIGHT', label: 'Gain weight' },
+  { value: 'MAINTAIN_WEIGHT', label: 'Maintain weight' },
+]
+
+const GENDER_LABELS: Record<Gender, string> = {
+  MALE: 'Male',
+  FEMALE: 'Female',
+  OTHER: 'Other',
+}
+
+const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
+  SEDENTARY: 'Sedentary',
+  LIGHT: 'Lightly active',
+  MODERATE: 'Moderately active',
+  ACTIVE: 'Active',
+  VERY_ACTIVE: 'Very active',
+}
+
+const GOAL_LABELS: Record<Goal, string> = {
+  LOSE_WEIGHT: 'Lose weight',
+  GAIN_WEIGHT: 'Gain weight',
+  MAINTAIN_WEIGHT: 'Maintain weight',
+}
+
+function nameRule(label: string) {
+  return {
+    required: `${label} is required`,
+    minLength: { value: 2, message: `${label} must be at least 2 characters` },
+    maxLength: { value: 50, message: `${label} must be at most 50 characters` },
+  }
+}
+
+/** Numeric string rule: required, a valid number within [min, max]. */
+function numberRule(label: string, min: number, max: number) {
+  return {
+    required: `${label} is required`,
+    validate: (value: string) => {
+      const num = Number(value)
+      if (value.trim() === '' || Number.isNaN(num)) {
+        return `${label} must be a number`
+      }
+      if (num < min || num > max) {
+        return `${label} must be between ${min} and ${max}`
+      }
+      return true
+    },
+  }
+}
+
+/** Maps a user entity into the form's string-based values. */
+function formFromUser(user: UserResponse): ProfileFormValues {
+  return {
+    firstName: user.firstName,
+    lastName: user.lastName,
+    age: String(user.age),
+    gender: user.gender,
+    height: String(user.height),
+    weight: String(user.weight),
+    activityLevel: user.activityLevel,
+    goal: user.goal,
+  }
+}
+
+/** Builds the API payload from raw form values (strings → numbers). */
+function toPayload(values: ProfileFormValues): UpdateUserRequest {
+  return {
+    firstName: values.firstName.trim(),
+    lastName: values.lastName.trim(),
+    age: Number(values.age),
+    // The selects are validated as required, so '' cannot reach here.
+    gender: values.gender as Gender,
+    height: Number(values.height),
+    weight: Number(values.weight),
+    activityLevel: values.activityLevel as ActivityLevel,
+    goal: values.goal as Goal,
+  }
+}
+
+type Notice = { tone: 'success' | 'error'; text: string } | null
+
+function ProfileSkeleton() {
+  return (
+    <div className="mx-auto max-w-4xl animate-pulse space-y-6 px-4 py-10 sm:px-6 lg:px-8">
+      <div className="h-8 w-40 rounded-lg bg-muted" />
+      <div className="h-4 w-64 rounded bg-muted" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="h-48 rounded-xl border border-border bg-card" />
+        <div className="h-48 rounded-xl border border-border bg-card" />
+      </div>
+    </div>
+  )
+}
+
+/** Signed-in profile — view account + health data and edit it. */
+export function ProfilePage() {
+  const { user, setUser, isLoading } = useAuth()
+  const [isEditing, setIsEditing] = useState(false)
+  const [notice, setNotice] = useState<Notice>(null)
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
-  } = useForm<ProfileFormValues>({ defaultValues: initialValues })
-
-  const onSubmit = async (values: ProfileFormValues) => {
-    setSubmitError(null)
-
-    const payload: UpdateUserRequest = {
-      firstName: values.firstName.trim(),
-      lastName: values.lastName.trim(),
-      age: Number(values.age),
-      gender: values.gender as Gender,
-      height: Number(values.height),
-      weight: Number(values.weight),
-      activityLevel: values.activityLevel as ActivityLevel,
-      goal: values.goal as Goal,
-    }
-
-    try {
-      const updated = await userService.updateMe(payload)
-      onSaved(updated)
-    } catch (error) {
-      setSubmitError(getErrorMessage(error))
-    }
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      noValidate
-      className="mt-8 rounded-xl border border-border bg-card p-6 sm:p-8"
-    >
-      <h2 className="text-lg font-semibold">Edit profile</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Changes apply to your account immediately.
-      </p>
-
-      {submitError && (
-        <div
-          role="alert"
-          className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-400"
-        >
-          {submitError}
-        </div>
-      )}
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <Field label="First name" htmlFor="profile-firstName" error={errors.firstName?.message}>
-          <input
-            id="profile-firstName"
-            type="text"
-            className={INPUT_CLASSES}
-            {...register('firstName', {
-              required: 'First name is required',
-              minLength: { value: 2, message: 'First name must be at least 2 characters' },
-              maxLength: { value: 50, message: 'First name must be at most 50 characters' },
-            })}
-          />
-        </Field>
-
-        <Field label="Last name" htmlFor="profile-lastName" error={errors.lastName?.message}>
-          <input
-            id="profile-lastName"
-            type="text"
-            className={INPUT_CLASSES}
-            {...register('lastName', {
-              required: 'Last name is required',
-              minLength: { value: 2, message: 'Last name must be at least 2 characters' },
-              maxLength: { value: 50, message: 'Last name must be at most 50 characters' },
-            })}
-          />
-        </Field>
-      </div>
-
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <Field label="Age" htmlFor="profile-age" error={errors.age?.message}>
-          <input
-            id="profile-age"
-            type="number"
-            inputMode="numeric"
-            className={INPUT_CLASSES}
-            {...register('age', {
-              required: 'Age is required',
-              min: { value: 13, message: 'Age must be between 13 and 120' },
-              max: { value: 120, message: 'Age must be between 13 and 120' },
-            })}
-          />
-        </Field>
-
-        <Field label="Height (cm)" htmlFor="profile-height" error={errors.height?.message}>
-          <input
-            id="profile-height"
-            type="number"
-            inputMode="decimal"
-            className={INPUT_CLASSES}
-            {...register('height', {
-              required: 'Height is required',
-              min: { value: 50, message: 'Height must be between 50 and 250 cm' },
-              max: { value: 250, message: 'Height must be between 50 and 250 cm' },
-            })}
-          />
-        </Field>
-
-        <Field label="Weight (kg)" htmlFor="profile-weight" error={errors.weight?.message}>
-          <input
-            id="profile-weight"
-            type="number"
-            inputMode="decimal"
-            className={INPUT_CLASSES}
-            {...register('weight', {
-              required: 'Weight is required',
-              min: { value: 20, message: 'Weight must be between 20 and 300 kg' },
-              max: { value: 300, message: 'Weight must be between 20 and 300 kg' },
-            })}
-          />
-        </Field>
-      </div>
-
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Field label="Gender" htmlFor="profile-gender" error={errors.gender?.message}>
-          <select
-            id="profile-gender"
-            className={INPUT_CLASSES}
-            {...register('gender', { required: 'Gender is required' })}
-          >
-            <option value="" disabled>
-              Select gender
-            </option>
-            {GENDER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <Field
-          label="Activity level"
-          htmlFor="profile-activityLevel"
-          error={errors.activityLevel?.message}
-        >
-          <select
-            id="profile-activityLevel"
-            className={INPUT_CLASSES}
-            {...register('activityLevel', { required: 'Activity level is required' })}
-          >
-            <option value="" disabled>
-              Select activity level
-            </option>
-            {ACTIVITY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
-
-      <div className="mt-4">
-        <Field label="Goal" htmlFor="profile-goal" error={errors.goal?.message}>
-          <select
-            id="profile-goal"
-            className={INPUT_CLASSES}
-            {...register('goal', { required: 'Goal is required' })}
-          >
-            <option value="" disabled>
-              Select goal
-            </option>
-            {GOAL_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
-
-      <div className="mt-6 flex items-center justify-end gap-3 border-t border-border pt-5">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={isSubmitting}
-          className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <X aria-hidden="true" className="h-4 w-4" />
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isSubmitting ? (
-            <>
-              <Spinner size="sm" />
-              Saving…
-            </>
-          ) : (
-            'Save changes'
-          )}
-        </button>
-      </div>
-    </form>
-  )
-}
-
-/* ---------- page ---------- */
-
-function toFormValues(profile: UserResponse): ProfileFormValues {
-  return {
-    firstName: profile.firstName,
-    lastName: profile.lastName,
-    age: String(profile.age),
-    gender: profile.gender,
-    height: String(profile.height),
-    weight: String(profile.weight),
-    activityLevel: profile.activityLevel,
-    goal: profile.goal,
-  }
-}
-
-interface DetailTileProps {
-  label: string
-  value: string
-}
-
-function DetailTile({ label, value }: DetailTileProps) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-1.5 text-sm font-semibold">{value}</p>
-    </div>
-  )
-}
-
-/**
- * Profile page — view + edit the authenticated user's own profile.
- * Protected route. Fresh data from GET /users/me; updates write back
- * into AuthContext via setUser so the whole app stays in sync.
- */
-export function ProfilePage() {
-  const { setUser } = useAuth()
-
-  const [profile, setProfile] = useState<UserResponse | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [reloadKey, setReloadKey] = useState(0)
+  } = useForm<ProfileFormValues>({ defaultValues: EMPTY_FORM })
 
   useEffect(() => {
-    let ignore = false
+    if (user) reset(formFromUser(user))
+  }, [user, reset])
 
-    const load = async () => {
-      setIsLoading(true)
-      setError(null)
-      try {
-        const result = await userService.getMe()
-        if (!ignore) {
-          setProfile(result)
-        }
-      } catch (err) {
-        if (!ignore) {
-          setError(getErrorMessage(err))
-        }
-      } finally {
-        if (!ignore) {
-          setIsLoading(false)
-        }
-      }
+  const onSubmit = async (values: ProfileFormValues) => {
+    setNotice(null)
+    try {
+      const updated = await userService.updateMe(toPayload(values))
+      setUser(updated)
+      setNotice({ tone: 'success', text: 'Profile updated successfully.' })
+      setIsEditing(false)
+    } catch (err) {
+      setNotice({ tone: 'error', text: getErrorMessage(err) })
     }
+  }
 
-    void load()
-
-    return () => {
-      ignore = true
-    }
-  }, [reloadKey])
-
-  const handleSaved = (updated: UserResponse) => {
-    setProfile(updated)
-    setUser(updated)
+  const cancelEdit = () => {
     setIsEditing(false)
-    setSuccessMessage('Profile updated successfully.')
+    setNotice(null)
+    if (user) reset(formFromUser(user))
   }
 
   if (isLoading) {
+    return <ProfileSkeleton />
+  }
+
+  if (!user) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
-        <p role="status" className="sr-only">
-          Loading profile…
-        </p>
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 w-40 rounded bg-muted" />
-          <div className="h-28 rounded-xl bg-muted" />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 7 }, (_, index) => (
-              <div key={index} className="h-20 rounded-xl bg-muted" />
-            ))}
-          </div>
-        </div>
-      </div>
+      <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+        <PageState
+          icon={UserIcon}
+          title="No profile data"
+          message="Sign in to view and update your profile."
+          action={
+            <Link to={routePaths.login} className="...">
+              Sign in
+            </Link>
+          }
+        />
+      </main>
     )
   }
 
-  if (error) {
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center justify-center rounded-xl border border-border px-6 py-16 text-center">
-          <h1 className="text-lg font-semibold">Couldn't load your profile</h1>
-          <p className="mt-1 max-w-md text-sm text-muted-foreground">{error}</p>
-          <button
-            type="button"
-            onClick={() => setReloadKey((key) => key + 1)}
-            className="mt-5 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Try again
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  if (!profile) {
-    return null
-  }
+  const healthRows = [
+    { label: 'Age', value: String(user.age) },
+    { label: 'Gender', value: GENDER_LABELS[user.gender] },
+    { label: 'Height', value: `${user.height} cm` },
+    { label: 'Weight', value: `${user.weight} kg` },
+    { label: 'Activity level', value: ACTIVITY_LABELS[user.activityLevel] },
+    { label: 'Goal', value: GOAL_LABELS[user.goal] },
+  ]
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
-      <header className="flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
-          <p className="mt-2 text-muted-foreground">
-            Your account and health details.
+          <p className="mt-1 text-muted-foreground">
+            Your account and the health data driving your plan.
           </p>
         </div>
-        {!isEditing && (
-          <button
-            type="button"
-            onClick={() => setIsEditing(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
+        {!isEditing ? (
+          <Button variant="outline" onClick={() => setIsEditing(true)}>
             <Pencil aria-hidden="true" className="h-4 w-4" />
             Edit profile
-          </button>
-        )}
+          </Button>
+        ) : null}
       </header>
 
-      {successMessage && (
-        <div
-          role="status"
-          className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-400"
-        >
-          {successMessage}
+      {notice ? (
+        <div className="mt-6">
+          <Alert tone={notice.tone} onDismiss={() => setNotice(null)}>
+            {notice.text}
+          </Alert>
         </div>
-      )}
+      ) : null}
 
       {isEditing ? (
-        <ProfileForm
-          key={profile.userId}
-          initialValues={toFormValues(profile)}
-          onCancel={() => setIsEditing(false)}
-          onSaved={handleSaved}
-        />
-      ) : (
-        <>
-          {/* Identity card */}
-          <div className="mt-8 flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card p-6 sm:p-8">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary">
-              {initials(profile)}
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-6">
+          <Card title="Account" description="Your personal details">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="First name" htmlFor="profile-first-name" error={errors.firstName?.message}>
+                <input
+                  id="profile-first-name"
+                  className={INPUT_CLASSES}
+                  aria-invalid={errors.firstName ? true : undefined}
+                  aria-describedby={errors.firstName ? 'profile-first-name-error' : undefined}
+                  {...register('firstName', nameRule('First name'))}
+                />
+              </Field>
+              <Field label="Last name" htmlFor="profile-last-name" error={errors.lastName?.message}>
+                <input
+                  id="profile-last-name"
+                  className={INPUT_CLASSES}
+                  aria-invalid={errors.lastName ? true : undefined}
+                  aria-describedby={errors.lastName ? 'profile-last-name-error' : undefined}
+                  {...register('lastName', nameRule('Last name'))}
+                />
+              </Field>
             </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-xl font-semibold">
-                {profile.firstName} {profile.lastName}
-              </h2>
-              <p className="truncate text-sm text-muted-foreground">{profile.email}</p>
-            </div>
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
-              {profile.role}
-            </span>
-          </div>
+          </Card>
 
-          {/* Health details */}
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailTile label="Age" value={String(profile.age)} />
-            <DetailTile label="Gender" value={GENDER_LABELS[profile.gender]} />
-            <DetailTile label="Height" value={`${profile.height} cm`} />
-            <DetailTile label="Weight" value={`${profile.weight} kg`} />
-            <DetailTile
-              label="Activity level"
-              value={ACTIVITY_LABELS[profile.activityLevel]}
-            />
-            <DetailTile label="Goal" value={GOAL_LABELS[profile.goal]} />
-            <DetailTile label="BMI" value={bmiSummary(profile)} />
+          <Card title="Health profile" description="Used to personalize your nutrition targets">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Age" htmlFor="profile-age" error={errors.age?.message}>
+                <input
+                  id="profile-age"
+                  type="number"
+                  inputMode="numeric"
+                  className={INPUT_CLASSES}
+                  aria-invalid={errors.age ? true : undefined}
+                  aria-describedby={errors.age ? 'profile-age-error' : undefined}
+                  {...register('age', numberRule('Age', 10, 120))}
+                />
+              </Field>
+              <Field label="Gender" htmlFor="profile-gender" error={errors.gender?.message}>
+                <select
+                  id="profile-gender"
+                  className={INPUT_CLASSES}
+                  aria-invalid={errors.gender ? true : undefined}
+                  aria-describedby={errors.gender ? 'profile-gender-error' : undefined}
+                  {...register('gender', { required: 'Gender is required' })}
+                >
+                  <option value="">Select gender</option>
+                  {GENDER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Height (cm)" htmlFor="profile-height" error={errors.height?.message}>
+                <input
+                  id="profile-height"
+                  type="number"
+                  inputMode="decimal"
+                  className={INPUT_CLASSES}
+                  aria-invalid={errors.height ? true : undefined}
+                  aria-describedby={errors.height ? 'profile-height-error' : undefined}
+                  {...register('height', numberRule('Height', 50, 250))}
+                />
+              </Field>
+              <Field label="Weight (kg)" htmlFor="profile-weight" error={errors.weight?.message}>
+                <input
+                  id="profile-weight"
+                  type="number"
+                  inputMode="decimal"
+                  className={INPUT_CLASSES}
+                  aria-invalid={errors.weight ? true : undefined}
+                  aria-describedby={errors.weight ? 'profile-weight-error' : undefined}
+                  {...register('weight', numberRule('Weight', 20, 300))}
+                />
+              </Field>
+              <Field label="Activity level" htmlFor="profile-activity" error={errors.activityLevel?.message}>
+                <select
+                  id="profile-activity"
+                  className={INPUT_CLASSES}
+                  aria-invalid={errors.activityLevel ? true : undefined}
+                  aria-describedby={errors.activityLevel ? 'profile-activity-error' : undefined}
+                  {...register('activityLevel', { required: 'Activity level is required' })}
+                >
+                  <option value="">Select activity level</option>
+                  {ACTIVITY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Goal" htmlFor="profile-goal" error={errors.goal?.message}>
+                <select
+                  id="profile-goal"
+                  className={INPUT_CLASSES}
+                  aria-invalid={errors.goal ? true : undefined}
+                  aria-describedby={errors.goal ? 'profile-goal-error' : undefined}
+                  {...register('goal', { required: 'Goal is required' })}
+                >
+                  <option value="">Select goal</option>
+                  {GOAL_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </Card>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={cancelEdit} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" isLoading={isSubmitting}>
+              <Save aria-hidden="true" className="h-4 w-4" />
+              Save changes
+            </Button>
           </div>
-        </>
+        </form>
+      ) : (
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <Card title="Account" description="Your account details">
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-xs text-muted-foreground">Name</dt>
+                <dd className="mt-0.5 font-medium text-foreground">
+                  {user.firstName} {user.lastName}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Email</dt>
+                <dd className="mt-0.5 font-medium text-foreground">{user.email}</dd>
+              </div>
+            </dl>
+          </Card>
+
+          <Card title="Health profile" description="The data driving your plan">
+            <dl className="grid grid-cols-2 gap-4">
+              {healthRows.map((row) => (
+                <div key={row.label}>
+                  <dt className="text-xs text-muted-foreground">{row.label}</dt>
+                  <dd className="mt-0.5 text-sm font-semibold text-foreground">
+                    {row.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+        </div>
       )}
-    </div>
+    </main>
   )
+}
+
+function getErrorMessage(err: unknown): string {
+  throw new Error('Function not implemented.')
 }
