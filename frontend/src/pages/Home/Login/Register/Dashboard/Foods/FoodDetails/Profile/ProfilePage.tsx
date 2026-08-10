@@ -12,6 +12,7 @@ import { Button } from '../../../../../../../../components/ui/Button'
 import { Alert } from '../../../../../../../../components/ui/Alert'
 import { Card } from '../../../../../../../../components/ui/Card'
 import { Field, INPUT_CLASSES } from '../../../../../../../../components/ui/Field'
+import { getErrorMessage } from '../../../../../../../../utils/error'
 
 interface ProfileFormValues {
   firstName: string
@@ -390,6 +391,3 @@ export function ProfilePage() {
   )
 }
 
-function getErrorMessage(err: unknown): string {
-  throw new Error('Function not implemented.')
-}

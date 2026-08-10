@@ -11,6 +11,7 @@ import { foodService } from '../../../../../../services/foodService'
 import { INPUT_CLASSES } from '../../../../../../components/ui/Field'
 import { Button } from '../../../../../../components/ui/Button'
 import { PageState } from '../../../../../../components/ui/PageState'
+import { getErrorMessage } from '../../../../../../utils/error'
 
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as FoodCategory[]
@@ -364,6 +365,4 @@ export function FoodsPage() {
   )
 }
 
-function getErrorMessage(err: unknown): import("react").SetStateAction<string | null> {
-  throw new Error('Function not implemented.')
-}
+

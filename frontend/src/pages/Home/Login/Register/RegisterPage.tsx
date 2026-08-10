@@ -8,9 +8,9 @@ import { useAuth } from '../../../../hooks/useAuth'
 import type { RegisterRequest } from '../../../../types/auth'
 import { routePaths } from '../../../../routes/routePaths'
 import { Field, INPUT_CLASSES } from '../../../../components/ui/Field'
-import { Spinner } from '../../../../components/common/Spinner'
-
-
+import { Button } from '../../../../components/ui/Button'
+import { Alert } from '../../../../components/ui/Alert'
+import { getErrorMessage } from '../../../../utils/error'
 
 interface RegisterFormValues {
   firstName: string
@@ -147,14 +147,11 @@ export function RegisterPage() {
               Free forever. No credit card required.
             </p>
 
-            {serverError ? (
-              <div
-                role="alert"
-                className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-400"
-              >
+            {serverError && (
+              <Alert tone="error" className="mt-5">
                 {serverError}
-              </div>
-            ) : null}
+              </Alert>
+            )}
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-6">
               <section className="space-y-4">
@@ -168,6 +165,7 @@ export function RegisterPage() {
                       id="firstName"
                       type="text"
                       autoComplete="given-name"
+                      aria-invalid={errors.firstName ? true : undefined}
                       className={INPUT_CLASSES}
                       {...register('firstName', {
                         required: 'First name is required',
@@ -182,6 +180,7 @@ export function RegisterPage() {
                       id="lastName"
                       type="text"
                       autoComplete="family-name"
+                      aria-invalid={errors.lastName ? true : undefined}
                       className={INPUT_CLASSES}
                       {...register('lastName', {
                         required: 'Last name is required',
@@ -198,6 +197,7 @@ export function RegisterPage() {
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
+                    aria-invalid={errors.email ? true : undefined}
                     className={INPUT_CLASSES}
                     {...register('email', {
                       required: 'Email is required',
@@ -216,7 +216,8 @@ export function RegisterPage() {
                       type={showPassword ? 'text' : 'password'}
                       autoComplete="new-password"
                       placeholder="At least 8 characters"
-                      className={`${INPUT_CLASSES} pr-10`}
+                      aria-invalid={errors.password ? true : undefined}
+                      className={INPUT_CLASSES}
                       {...register('password', {
                         required: 'Password is required',
                         minLength: { value: 8, message: 'Password must be at least 8 characters' },
@@ -250,6 +251,7 @@ export function RegisterPage() {
                       min={13}
                       max={120}
                       placeholder="e.g. 24"
+                      aria-invalid={errors.age ? true : undefined}
                       className={INPUT_CLASSES}
                       {...register('age', {
                         required: 'Age is required',
@@ -267,6 +269,7 @@ export function RegisterPage() {
                       min={50}
                       max={250}
                       placeholder="e.g. 170"
+                      aria-invalid={errors.height ? true : undefined}
                       className={INPUT_CLASSES}
                       {...register('height', {
                         required: 'Height is required',
@@ -284,6 +287,7 @@ export function RegisterPage() {
                       min={20}
                       max={300}
                       placeholder="e.g. 65"
+                      aria-invalid={errors.weight ? true : undefined}
                       className={INPUT_CLASSES}
                       {...register('weight', {
                         required: 'Weight is required',
@@ -297,6 +301,7 @@ export function RegisterPage() {
                 <Field label="Gender" htmlFor="gender" error={errors.gender?.message}>
                   <select
                     id="gender"
+                    aria-invalid={errors.gender ? true : undefined}
                     className={INPUT_CLASSES}
                     {...register('gender', { required: 'Gender is required' })}
                   >
@@ -318,6 +323,7 @@ export function RegisterPage() {
                 >
                   <select
                     id="activityLevel"
+                    aria-invalid={errors.activityLevel ? true : undefined}
                     className={INPUT_CLASSES}
                     {...register('activityLevel', { required: 'Activity level is required' })}
                   >
@@ -335,6 +341,7 @@ export function RegisterPage() {
                 <Field label="Goal" htmlFor="goal" error={errors.goal?.message}>
                   <select
                     id="goal"
+                    aria-invalid={errors.goal ? true : undefined}
                     className={INPUT_CLASSES}
                     {...register('goal', { required: 'Goal is required' })}
                   >
@@ -350,20 +357,9 @@ export function RegisterPage() {
                 </Field>
               </section>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Spinner size="sm" />
-                    Creating account…
-                  </>
-                ) : (
-                  'Create account'
-                )}
-              </button>
+              <Button type="submit" size="lg" className="w-full" isLoading={isSubmitting}>
+                {isSubmitting ? 'Creating account…' : 'Create account'}
+              </Button>
             </form>
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
@@ -380,8 +376,4 @@ export function RegisterPage() {
       </div>
     </div>
   )
-}
-
-function getErrorMessage(error: unknown): import("react").SetStateAction<string | null> {
-    throw new Error('Function not implemented.')
 }

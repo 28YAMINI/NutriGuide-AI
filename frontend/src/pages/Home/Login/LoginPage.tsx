@@ -7,6 +7,9 @@ import { useAuth } from '../../../hooks/useAuth'
 import { routePaths } from '../../../routes/routePaths'
 import type { LoginRequest } from '../../../types/auth'
 import { Field, INPUT_CLASSES } from '../../../components/ui/Field'
+import { Button } from '../../../components/ui/Button'
+import { Alert } from '../../../components/ui/Alert'
+import { getErrorMessage } from '../../../utils/error'
 
 interface LoginFormValues {
   email: string
@@ -118,13 +121,13 @@ export function LoginPage() {
                   type="email"
                   autoComplete="email"
                   placeholder="you@example.com"
+                  aria-invalid={errors.email ? true : undefined}
                   className={INPUT_CLASSES}
                   {...register('email', {
                     required: 'Email is required',
                     pattern: {
                       value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                      message:
-                       'Enter a valid email address',
+                      message: 'Enter a valid email address',
                     },
                   })}
                 />
@@ -136,6 +139,7 @@ export function LoginPage() {
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
+                    aria-invalid={errors.password ? true : undefined}
                     className={`${INPUT_CLASSES} pr-10`}
                     {...register('password', {
                       required: 'Password is required',
@@ -172,8 +176,4 @@ export function LoginPage() {
       </div>
     </div>
   )
-}
-
-function getErrorMessage(error: unknown): import("react").SetStateAction<string | null> {
-  throw new Error('Function not implemented.')
 }

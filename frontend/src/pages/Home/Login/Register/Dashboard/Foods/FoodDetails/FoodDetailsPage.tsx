@@ -9,6 +9,7 @@ import { PageState } from '../../../../../../../components/ui/PageState'
 import { buttonClassName } from '../../../../../../../components/ui/Button'
 import { formatCalories, formatMacro } from '../../../../../../../utils/format'
 import { CATEGORY_LABELS } from '../../../../../../../constants/food'
+import { getErrorMessage } from '../../../../../../../utils/error'
 
 
 function FoodDetailsSkeleton() {
@@ -159,6 +160,3 @@ export function FoodDetailsPage() {
   )
 }
 
-function getErrorMessage(err: unknown): import("react").SetStateAction<string | null> {
-  throw new Error('Function not implemented.')
-}
