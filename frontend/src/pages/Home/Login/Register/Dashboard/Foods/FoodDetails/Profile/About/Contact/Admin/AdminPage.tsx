@@ -1,22 +1,17 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useEffect, useState } from 'react'
+import axios from 'axios'
 
-import { Leaf, PackageOpen, Pencil, Plus, SearchX, Trash2 } from 'lucide-react'
-import { CATEGORY_LABELS } from '../../../../../../../../../../../constants/food'
-import type { CreateFoodRequest, FoodCategory, FoodItem, UpdateFoodRequest } from '../../../../../../../../../../../types/food'
+import { Leaf, Pencil, Plus, Trash2, Utensils } from 'lucide-react'
+import type { CreateFoodRequest, FoodCategory, FoodItem } from '../../../../../../../../../../../types/food'
 import { foodService } from '../../../../../../../../../../../services/foodService'
-import { getErrorMessage } from '../../../../../../../../../../../utils/error'
-import { Alert } from '../../../../../../../../../../../components/ui/Alert'
+import { useForm } from 'react-hook-form'
 import { Button } from '../../../../../../../../../../../components/ui/Button'
 import { PageState } from '../../../../../../../../../../../components/ui/PageState'
-import { Card } from '../../../../../../../../../../../components/ui/Card'
-import { formatCalories, formatMacro } from '../../../../../../../../../../../utils/format'
+import { Alert } from '../../../../../../../../../../../components/ui/Alert'
+import { FoodImage } from '../../../../../../../../../../../components/common/FoodImage'
+import { CATEGORY_LABELS, FOOD_CATEGORIES } from '../../../../../../../../../../../constants/food'
 import { Modal } from '../../../../../../../../../../../components/ui/Modal'
 import { Field, INPUT_CLASSES } from '../../../../../../../../../../../components/ui/Field'
-
-
-
-const CATEGORIES = Object.keys(CATEGORY_LABELS) as FoodCategory[]
 
 interface FoodFormValues {
   name: string
@@ -28,11 +23,13 @@ interface FoodFormValues {
   fat: string
   fiber: string
   servingSize: string
-  imageUrl: string
+  imageUrl?: string
   vegetarian: boolean
 }
 
-const EMPTY_FORM: FoodFormValues = {
+type Notice = { tone: 'success' | 'error'; text: string } | null
+
+const DEFAULT_FORM_VALUES: FoodFormValues = {
   name: '',
   description: '',
   category: '',
@@ -46,105 +43,28 @@ const EMPTY_FORM: FoodFormValues = {
   vegetarian: false,
 }
 
-const nameRule = {
-  required: 'Name is required',
-  minLength: { value: 2, message: 'Name must be at least 2 characters' },
-  maxLength: { value: 150, message: 'Name must be at most 150 characters' },
-}
+const NUMBER_RULE = (label: string) => ({
+  required: `${label} is required`,
+  min: { value: 0, message: `${label} must be 0 or greater` },
+})
 
-const descriptionRule = {
-  required: 'Description is required',
-  maxLength: {
-    value: 500,
-    message: 'Description must be at most 500 characters',
-  },
-}
-
-const categoryRule = {
-  required: 'Category is required',
-}
-
-const servingSizeRule = {
-  required: 'Serving size is required',
-  maxLength: {
-    value: 50,
-    message: 'Serving size must be at most 50 characters',
-  },
-}
-
-/** Numeric string rule: required, a valid number, within [0, max]. */
-function numericRule(label: string, max = 9999.99) {
-  return {
-    required: `${label} is required`,
-    validate: (value: string) => {
-      const num = Number(value)
-      if (value.trim() === '' || Number.isNaN(num)) {
-        return `${label} must be a number`
-      }
-      if (num < 0) return `${label} must be 0 or more`
-      if (num > max) return `${label} must be at most ${max}`
-      return true
-    },
-  }
-}
-
-const imageUrlRule = {
-  validate: (value: string) =>
-    value.trim() === '' ||
-    /^(http|https):\/\/.*$/.test(value.trim()) ||
-    'Image URL must start with http:// or https://',
-}
-
-/** Shape accepted by both createFood and updateFood (fields are identical). */
-type FoodPayload = CreateFoodRequest & UpdateFoodRequest
-
-/** Builds the API payload from raw form values (strings → numbers). */
-function toPayload(values: FoodFormValues): FoodPayload {
-  return {
-    name: values.name.trim(),
-    description: values.description.trim(),
-    // The category select is validated as required, so '' cannot reach here.
-    category: values.category as FoodCategory,
-    calories: Number(values.calories),
-    protein: Number(values.protein),
-    carbohydrates: Number(values.carbohydrates),
-    fat: Number(values.fat),
-    fiber: Number(values.fiber),
-    servingSize: values.servingSize.trim(),
-    imageUrl: values.imageUrl.trim(),
-    vegetarian: values.vegetarian,
-  }
-}
-
-function AdminTableSkeleton() {
-  return (
-    <Card className="overflow-hidden">
-      <div className="divide-y divide-border">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <div key={i} className="flex items-center justify-between px-5 py-4">
-            <div className="h-4 w-40 animate-pulse rounded bg-muted" />
-            <div className="h-4 w-16 animate-pulse rounded bg-muted" />
-          </div>
-        ))}
-      </div>
-    </Card>
-  )
-}
-
-type Notice = { tone: 'success' | 'error'; text: string } | null
-
-/** Admin-only food management — full CRUD against the catalog API. */
+/**
+ * Admin food management.
+ *
+ * Table CRUD for the food catalog: add / edit through a shared modal
+ * form, delete through a confirmation dialog. All API calls go
+ * through foodService — no contract changes.
+ */
 export function AdminPage() {
   const [foods, setFoods] = useState<FoodItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  // Object state — no string state exists in this file, so
-  // SetStateAction<string> can never be produced here.
-  const [loadError, setLoadError] = useState<{ message: string } | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<Notice>(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
-  const [formOpen, setFormOpen] = useState(false)
-  const [editing, setEditing] = useState<FoodItem | null>(null)
-  const [foodToDelete, setFoodToDelete] = useState<FoodItem | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingFood, setEditingFood] = useState<FoodItem | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<FoodItem | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
   const {
@@ -152,33 +72,40 @@ export function AdminPage() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FoodFormValues>({ defaultValues: EMPTY_FORM })
+  } = useForm<FoodFormValues>({ defaultValues: DEFAULT_FORM_VALUES })
 
-  const load = useCallback(async () => {
-    setIsLoading(true)
-    setLoadError(null)
-    try {
-      setFoods(await foodService.getAllFoods())
-    } catch (err) {
-      setLoadError({ message: getErrorMessage(err) })
-      setFoods([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
+  // Load the catalog.
   useEffect(() => {
-    void load()
-  }, [load])
+    let cancelled = false
+
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const result = await foodService.getAllFoods()
+        if (!cancelled) setFoods(result)
+      } catch (err) {
+        if (!cancelled) setError(getErrorMessage(err))
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [reloadKey])
 
   const openAdd = () => {
-    setEditing(null)
-    reset(EMPTY_FORM)
-    setFormOpen(true)
+    setEditingFood(null)
+    reset(DEFAULT_FORM_VALUES)
+    setIsModalOpen(true)
   }
 
   const openEdit = (food: FoodItem) => {
-    setEditing(food)
+    setEditingFood(food)
     reset({
       name: food.name,
       description: food.description,
@@ -192,53 +119,123 @@ export function AdminPage() {
       imageUrl: food.imageUrl ?? '',
       vegetarian: food.vegetarian,
     })
-    setFormOpen(true)
+    setIsModalOpen(true)
   }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setEditingFood(null)
+  }
+
+  /** Converts form values to the shared request shape (no casts needed). */
+  const toPayload = (values: FoodFormValues): CreateFoodRequest => ({
+    name: values.name.trim(),
+    description: values.description.trim(),
+    category: values.category as FoodCategory,
+    calories: Number(values.calories),
+    protein: Number(values.protein),
+    carbohydrates: Number(values.carbohydrates),
+    fat: Number(values.fat),
+    fiber: Number(values.fiber),
+    servingSize: values.servingSize.trim(),
+    imageUrl: values.imageUrl?.trim() || undefined,
+    vegetarian: values.vegetarian,
+  })
 
   const onSubmit = async (values: FoodFormValues) => {
     setNotice(null)
+
     try {
       const payload = toPayload(values)
-      if (editing) {
-        await foodService.updateFood(editing.id, payload)
-        setNotice({ tone: 'success', text: `“${payload.name}” updated.` })
+
+      if (editingFood) {
+        await foodService.updateFood(editingFood.foodId, payload)
+        setNotice({ tone: 'success', text: 'Food updated successfully.' })
       } else {
         await foodService.createFood(payload)
-        setNotice({
-          tone: 'success',
-          text: `“${payload.name}” added to the catalog.`,
-        })
+        setNotice({ tone: 'success', text: 'Food added successfully.' })
       }
-      setFormOpen(false)
-      void load()
+
+      setIsModalOpen(false)
+      setEditingFood(null)
+      setReloadKey((key) => key + 1)
     } catch (err) {
       setNotice({ tone: 'error', text: getErrorMessage(err) })
     }
   }
 
   const confirmDelete = async () => {
-    if (!foodToDelete) return
+    if (!deleteTarget) return
+
     setIsDeleting(true)
     setNotice(null)
+
     try {
-      await foodService.deleteFood(foodToDelete.id)
-      setNotice({ tone: 'success', text: `“${foodToDelete.name}” deleted.` })
-      setFoodToDelete(null)
-      void load()
+      await foodService.deleteFood(deleteTarget.foodId)
+      setNotice({ tone: 'success', text: 'Food deleted.' })
+      setDeleteTarget(null)
+      setReloadKey((key) => key + 1)
     } catch (err) {
       setNotice({ tone: 'error', text: getErrorMessage(err) })
+      setDeleteTarget(null)
     } finally {
       setIsDeleting(false)
     }
   }
 
+  /* ---------- states ---------- */
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="h-8 w-40 rounded-lg bg-muted" />
+        <div className="mt-2 h-4 w-64 max-w-full rounded bg-muted" />
+        <div className="mt-8 space-y-3" aria-hidden="true">
+          {[0, 1, 2, 3, 4, 5].map((index) => (
+            <div
+              key={index}
+              className="h-16 animate-pulse rounded-xl border border-border bg-card"
+            />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <PageState
+        icon={Utensils}
+        title="Couldn't load foods"
+        message={error}
+        action={
+          <Button onClick={() => setReloadKey((key) => key + 1)}>
+            Try again
+          </Button>
+        }
+      />
+    )
+  }
+
+  if (foods.length === 0) {
+    return (
+      <PageState
+        icon={Plus}
+        title="No foods yet"
+        message="Add your first food to start building the catalog."
+        action={<Button onClick={openAdd}>Add food</Button>}
+      />
+    )
+  }
+
   return (
-    <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      {/* Header */}
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin</h1>
           <p className="mt-1 text-muted-foreground">
-            Manage the food catalog — add, edit and remove entries.
+            Manage the food catalog.
           </p>
         </div>
         <Button onClick={openAdd}>
@@ -248,170 +245,204 @@ export function AdminPage() {
       </header>
 
       {notice ? (
-        <div className="mt-6">
-          <Alert tone={notice.tone} onDismiss={() => setNotice(null)}>
-            {notice.text}
-          </Alert>
-        </div>
+        <Alert
+          tone={notice.tone}
+          className="mt-6"
+          onDismiss={() => setNotice(null)}
+        >
+          {notice.text}
+        </Alert>
       ) : null}
 
-      <div className="mt-6">
-        {isLoading ? (
-          <AdminTableSkeleton />
-        ) : loadError ? (
-          <PageState
-            icon={SearchX}
-            title="Couldn't load foods"
-            message={loadError.message}
-            action={
-              <Button variant="outline" onClick={() => void load()}>
-                Try again
-              </Button>
-            }
-          />
-        ) : foods.length === 0 ? (
-          <PageState
-            icon={PackageOpen}
-            title="No foods yet"
-            message="Add your first food to start building the catalog."
-            action={
-              <Button onClick={openAdd}>
-                <Plus aria-hidden="true" className="h-4 w-4" />
-                Add food
-              </Button>
-            }
-          />
-        ) : (
-          <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th scope="col" className="px-5 py-3 font-medium">Food</th>
-                    <th scope="col" className="px-5 py-3 font-medium">Category</th>
-                    <th scope="col" className="px-5 py-3 font-medium">Calories</th>
-                    <th scope="col" className="px-5 py-3 font-medium">Protein</th>
-                    <th scope="col" className="px-5 py-3 font-medium">Vegetarian</th>
-                    <th scope="col" className="px-5 py-3 text-right font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {foods.map((food) => (
-                    <tr key={food.id} className="transition-colors hover:bg-muted/40">
-                      <td className="px-5 py-3 font-medium text-foreground">{food.name}</td>
-                      <td className="px-5 py-3 text-muted-foreground">
-                        {CATEGORY_LABELS[food.category]}
-                      </td>
-                      <td className="px-5 py-3 text-muted-foreground">
-                        {formatCalories(food.calories)}
-                      </td>
-                      <td className="px-5 py-3 text-muted-foreground">
-                        {formatMacro(food.protein)} g
-                      </td>
-                      <td className="px-5 py-3">
-                        {food.vegetarian ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/10 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                            <Leaf aria-hidden="true" className="h-3 w-3" />
-                            Yes
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">No</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEdit(food)}
-                            aria-label={`Edit ${food.name}`}
-                          >
-                            <Pencil aria-hidden="true" className="h-4 w-4" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setFoodToDelete(food)}
-                            aria-label={`Delete ${food.name}`}
-                          >
-                            <Trash2
-                              aria-hidden="true"
-                              className="h-4 w-4 text-red-600 dark:text-red-400"
-                            />
-                            <span className="text-red-600 dark:text-red-400">
-                              Delete
-                            </span>
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        )}
+      {/* Table */}
+      <div className="mt-8 overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+        <table className="w-full min-w-[720px] text-left text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+              <th scope="col" className="px-4 py-3 font-medium">
+                Food
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Category
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Calories
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Protein
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Vegetarian
+              </th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {foods.map((food) => (
+              <tr key={food.foodId} className="transition-colors hover:bg-muted/40">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <FoodImage
+                      src={food.imageUrl}
+                      alt={food.name}
+                      className="h-10 w-12 shrink-0 rounded-md"
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-foreground">
+                        {food.name}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {food.servingSize}
+                      </p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                    {CATEGORY_LABELS[food.category]}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-foreground">
+                  {food.calories} kcal
+                </td>
+                <td className="px-4 py-3 text-foreground">{food.protein} g</td>
+                <td className="px-4 py-3">
+                  {food.vegetarian ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                      <Leaf aria-hidden="true" className="h-3.5 w-3.5" />
+                      Yes
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No</span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEdit(food)}
+                    >
+                      <Pencil aria-hidden="true" className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteTarget(food)}
+                    >
+                      <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
+                      Delete
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* Add / edit modal */}
+      {/* Add / Edit modal */}
       <Modal
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        title={editing ? 'Edit food' : 'Add food'}
+        open={isModalOpen}
+        onClose={closeModal}
+        title={editingFood ? 'Edit food' : 'Add food'}
         description={
-          editing ? `Update “${editing.name}”.` : 'Create a new entry in the food catalog.'
+          editingFood
+            ? `Editing "${editingFood.name}"`
+            : 'Add a new food to the catalog.'
         }
+        size="lg"
         footer={
           <>
-            <Button
-              variant="outline"
-              onClick={() => setFormOpen(false)}
-              disabled={isSubmitting}
-            >
+            <Button variant="outline" onClick={closeModal}>
               Cancel
             </Button>
             <Button type="submit" form="food-form" isLoading={isSubmitting}>
-              {editing ? 'Save changes' : 'Add food'}
+              {editingFood ? 'Save changes' : 'Add food'}
             </Button>
           </>
         }
       >
-        <form id="food-form" onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-          <Field label="Name" htmlFor="food-name" error={errors.name?.message}>
+        <form
+          id="food-form"
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+          className="space-y-4"
+        >
+          <Field
+            label="Name"
+            htmlFor="name"
+            error={errors.name?.message}
+            required
+          >
             <input
-              id="food-name"
-              className={INPUT_CLASSES}
-              placeholder="e.g. Greek yogurt"
+              id="name"
+              type="text"
+              placeholder="e.g. Grilled chicken breast"
               aria-invalid={errors.name ? true : undefined}
-              aria-describedby={errors.name ? 'food-name-error' : undefined}
-              {...register('name', nameRule)}
+              aria-describedby={errors.name ? 'name-error' : undefined}
+              className={INPUT_CLASSES}
+              {...register('name', {
+                required: 'Name is required',
+                minLength: {
+                  value: 2,
+                  message: 'Name must be at least 2 characters',
+                },
+                maxLength: {
+                  value: 100,
+                  message: 'Name must be at most 100 characters',
+                },
+              })}
             />
           </Field>
 
-          <Field label="Description" htmlFor="food-description" error={errors.description?.message}>
+          <Field
+            label="Description"
+            htmlFor="description"
+            error={errors.description?.message}
+            required
+          >
             <textarea
-              id="food-description"
+              id="description"
               rows={3}
-              className={INPUT_CLASSES}
-              placeholder="A short description of the food"
+              placeholder="A short, helpful description…"
               aria-invalid={errors.description ? true : undefined}
-              aria-describedby={errors.description ? 'food-description-error' : undefined}
-              {...register('description', descriptionRule)}
+              aria-describedby={
+                errors.description ? 'description-error' : undefined
+              }
+              className={`${INPUT_CLASSES} h-auto resize-y py-2`}
+              {...register('description', {
+                required: 'Description is required',
+                minLength: {
+                  value: 10,
+                  message: 'Description must be at least 10 characters',
+                },
+              })}
             />
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Category" htmlFor="food-category" error={errors.category?.message}>
+            <Field
+              label="Category"
+              htmlFor="category"
+              error={errors.category?.message}
+              required
+            >
               <select
-                id="food-category"
-                className={INPUT_CLASSES}
+                id="category"
+                className={`${INPUT_CLASSES} cursor-pointer`}
                 aria-invalid={errors.category ? true : undefined}
-                aria-describedby={errors.category ? 'food-category-error' : undefined}
-                {...register('category', categoryRule)}
+                aria-describedby={errors.category ? 'category-error' : undefined}
+                {...register('category', { required: 'Category is required' })}
               >
-                <option value="">Select a category</option>
-                {CATEGORIES.map((cat) => (
+                <option value="" disabled>
+                  Select category
+                </option>
+                {FOOD_CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
                     {CATEGORY_LABELS[cat]}
                   </option>
@@ -419,147 +450,205 @@ export function AdminPage() {
               </select>
             </Field>
 
-            <Field label="Serving size" htmlFor="food-serving" error={errors.servingSize?.message}>
+            <Field
+              label="Serving size"
+              htmlFor="servingSize"
+              error={errors.servingSize?.message}
+              required
+            >
               <input
-                id="food-serving"
-                className={INPUT_CLASSES}
+                id="servingSize"
+                type="text"
                 placeholder="e.g. 100 g"
                 aria-invalid={errors.servingSize ? true : undefined}
-                aria-describedby={errors.servingSize ? 'food-serving-error' : undefined}
-                {...register('servingSize', servingSizeRule)}
+                aria-describedby={
+                  errors.servingSize ? 'servingSize-error' : undefined
+                }
+                className={INPUT_CLASSES}
+                {...register('servingSize', {
+                  required: 'Serving size is required',
+                })}
               />
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-            <Field label="Calories" htmlFor="food-calories" error={errors.calories?.message}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Calories"
+              htmlFor="calories"
+              error={errors.calories?.message}
+              required
+            >
               <input
-                id="food-calories"
+                id="calories"
                 type="number"
                 inputMode="decimal"
                 min={0}
-                step="any"
-                className={INPUT_CLASSES}
-                placeholder="kcal"
+                step="0.1"
+                placeholder="e.g. 165"
                 aria-invalid={errors.calories ? true : undefined}
-                aria-describedby={errors.calories ? 'food-calories-error' : undefined}
-                {...register('calories', numericRule('Calories'))}
+                aria-describedby={errors.calories ? 'calories-error' : undefined}
+                className={INPUT_CLASSES}
+                {...register('calories', NUMBER_RULE('Calories'))}
               />
             </Field>
-            <Field label="Protein" htmlFor="food-protein" error={errors.protein?.message}>
+
+            <Field
+              label="Protein (g)"
+              htmlFor="protein"
+              error={errors.protein?.message}
+              required
+            >
               <input
-                id="food-protein"
+                id="protein"
                 type="number"
                 inputMode="decimal"
                 min={0}
-                step="any"
-                className={INPUT_CLASSES}
-                placeholder="g"
+                step="0.1"
                 aria-invalid={errors.protein ? true : undefined}
-                aria-describedby={errors.protein ? 'food-protein-error' : undefined}
-                {...register('protein', numericRule('Protein'))}
+                aria-describedby={errors.protein ? 'protein-error' : undefined}
+                className={INPUT_CLASSES}
+                {...register('protein', NUMBER_RULE('Protein'))}
               />
             </Field>
-            <Field label="Carbs" htmlFor="food-carbs" error={errors.carbohydrates?.message}>
+
+            <Field
+              label="Carbohydrates (g)"
+              htmlFor="carbohydrates"
+              error={errors.carbohydrates?.message}
+              required
+            >
               <input
-                id="food-carbs"
+                id="carbohydrates"
                 type="number"
                 inputMode="decimal"
                 min={0}
-                step="any"
-                className={INPUT_CLASSES}
-                placeholder="g"
+                step="0.1"
                 aria-invalid={errors.carbohydrates ? true : undefined}
-                aria-describedby={errors.carbohydrates ? 'food-carbs-error' : undefined}
-                {...register('carbohydrates', numericRule('Carbs'))}
+                aria-describedby={
+                  errors.carbohydrates ? 'carbohydrates-error' : undefined
+                }
+                className={INPUT_CLASSES}
+                {...register('carbohydrates', NUMBER_RULE('Carbohydrates'))}
               />
             </Field>
-            <Field label="Fat" htmlFor="food-fat" error={errors.fat?.message}>
+
+            <Field
+              label="Fat (g)"
+              htmlFor="fat"
+              error={errors.fat?.message}
+              required
+            >
               <input
-                id="food-fat"
+                id="fat"
                 type="number"
                 inputMode="decimal"
                 min={0}
-                step="any"
-                className={INPUT_CLASSES}
-                placeholder="g"
+                step="0.1"
                 aria-invalid={errors.fat ? true : undefined}
-                aria-describedby={errors.fat ? 'food-fat-error' : undefined}
-                {...register('fat', numericRule('Fat'))}
+                aria-describedby={errors.fat ? 'fat-error' : undefined}
+                className={INPUT_CLASSES}
+                {...register('fat', NUMBER_RULE('Fat'))}
               />
             </Field>
-            <Field label="Fiber" htmlFor="food-fiber" error={errors.fiber?.message}>
+
+            <Field
+              label="Fiber (g)"
+              htmlFor="fiber"
+              error={errors.fiber?.message}
+              required
+            >
               <input
-                id="food-fiber"
+                id="fiber"
                 type="number"
                 inputMode="decimal"
                 min={0}
-                step="any"
-                className={INPUT_CLASSES}
-                placeholder="g"
+                step="0.1"
                 aria-invalid={errors.fiber ? true : undefined}
-                aria-describedby={errors.fiber ? 'food-fiber-error' : undefined}
-                {...register('fiber', numericRule('Fiber'))}
+                aria-describedby={errors.fiber ? 'fiber-error' : undefined}
+                className={INPUT_CLASSES}
+                {...register('fiber', NUMBER_RULE('Fiber'))}
               />
             </Field>
           </div>
 
-          <Field label="Image URL (optional)" htmlFor="food-image" error={errors.imageUrl?.message}>
+          <Field
+            label="Image URL"
+            htmlFor="imageUrl"
+            error={errors.imageUrl?.message}
+            hint="Optional. Falls back to a placeholder if missing."
+          >
             <input
-              id="food-image"
+              id="imageUrl"
               type="url"
-              className={INPUT_CLASSES}
               placeholder="https://…"
               aria-invalid={errors.imageUrl ? true : undefined}
-              aria-describedby={errors.imageUrl ? 'food-image-error' : undefined}
-              {...register('imageUrl', imageUrlRule)}
+              aria-describedby={
+                errors.imageUrl ? 'imageUrl-error' : 'imageUrl-hint'
+              }
+              className={INPUT_CLASSES}
+              {...register('imageUrl')}
             />
           </Field>
 
-          <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <div className="flex items-center gap-2.5">
             <input
+              id="vegetarian"
               type="checkbox"
-              className="h-4 w-4 rounded border-border accent-primary"
+              className="h-4 w-4 cursor-pointer rounded border-border accent-primary"
               {...register('vegetarian')}
             />
-            Vegetarian
-          </label>
+            <label
+              htmlFor="vegetarian"
+              className="text-sm font-medium text-foreground"
+            >
+              This food is vegetarian
+            </label>
+          </div>
         </form>
       </Modal>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       <Modal
-        open={foodToDelete !== null}
-        onClose={() => setFoodToDelete(null)}
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
         title="Delete food"
-        description={
-          foodToDelete
-            ? `“${foodToDelete.name}” will be permanently removed.`
-            : undefined
-        }
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => setFoodToDelete(null)}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => void confirmDelete()}
-              isLoading={isDeleting}
-            >
-              Delete food
-            </Button>
-          </>
-        }
+        size="sm"
       >
         <p className="text-sm text-muted-foreground">
-          Are you sure? This action cannot be undone.
+          Are you sure you want to delete{' '}
+          <strong className="font-medium text-foreground">
+            {deleteTarget?.name}
+          </strong>
+          ? This action cannot be undone.
         </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={confirmDelete}
+            isLoading={isDeleting}
+          >
+            Delete
+          </Button>
+        </div>
       </Modal>
-    </main>
+    </div>
   )
+}
+
+/**
+ * Extracts a human-readable message from an API/network error.
+ * Spring Boot error bodies usually carry { message: "..." }.
+ */
+function getErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { message?: string } | undefined
+    if (data?.message) return data.message
+    return error.message
+  }
+  if (error instanceof Error && error.message) return error.message
+  return 'Something went wrong. Please try again.'
 }

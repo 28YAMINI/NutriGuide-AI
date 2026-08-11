@@ -1,118 +1,94 @@
 import { Link } from 'react-router-dom'
 
-import { Leaf } from 'lucide-react'
+import { Leaf as LeafIcon } from 'lucide-react'
 
-import { useAuth } from '../../hooks/useAuth'
 import { routePaths } from '../../routes/routePaths'
 
 const PRODUCT_LINKS = [
+  { to: routePaths.home, label: 'Home' },
   { to: routePaths.foods, label: 'Foods' },
   { to: routePaths.about, label: 'About' },
   { to: routePaths.contact, label: 'Contact' },
 ] as const
 
-const COMPANY_LINKS = [
-  { to: routePaths.about, label: 'About' },
-  { to: routePaths.contact, label: 'Contact' },
+const ACCOUNT_LINKS = [
+  { to: routePaths.login, label: 'Sign in' },
+  { to: routePaths.register, label: 'Create account' },
+  { to: routePaths.dashboard, label: 'Dashboard' },
+  { to: routePaths.profile, label: 'Profile' },
 ] as const
 
-const LEGAL_LINKS = [
-  { to: routePaths.home, label: 'Privacy Policy' },
-  { to: routePaths.home, label: 'Terms of Service' },
-] as const
+const linkClass =
+  'text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm'
 
 /**
  * Global footer.
  *
- * Matches the Navbar's design language (flat background, plain logo).
- * The CTA is auth-aware: signed-out visitors get "Get started",
- * signed-in visitors get "Go to dashboard".
+ * Brand block, product and account navigation, and the medical
+ * disclaimer. All links stay client-side via React Router.
  */
 export function Footer() {
-  const { isAuthenticated } = useAuth()
+  const year = new Date().getFullYear()
 
   return (
-    <footer className="border-t border-border bg-background">
+    <footer className="border-t border-border bg-muted/30">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
+        <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr]">
           {/* Brand */}
-          <div className="max-w-sm">
+          <div>
             <Link
               to={routePaths.home}
-              className="flex items-center gap-2 font-semibold text-foreground"
+              className="inline-flex items-center gap-2.5 font-semibold text-foreground"
             >
-              <Leaf className="h-5 w-5 text-primary" />
-              <span>NutriGuideAI</span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <LeafIcon aria-hidden="true" className="h-4 w-4" />
+              </span>
+              <span>
+                NutriGuide<span className="text-primary">AI</span>
+              </span>
             </Link>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Personalized, evidence-informed nutrition guidance built
-              around your health goals.
+            <p className="mt-3 max-w-sm text-sm text-muted-foreground">
+              Personalized nutrition guidance built around your body, your
+              goals, and your budget — with your privacy respected.
             </p>
-            <Link
-              to={
-                isAuthenticated ? routePaths.dashboard : routePaths.register
-              }
-              className="mt-4 inline-flex rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              {isAuthenticated ? 'Go to dashboard' : 'Get started'}
-            </Link>
           </div>
 
-          {/* Link columns */}
-          <div className="grid grid-cols-2 gap-10 sm:grid-cols-3">
-            <div>
-              <h3 className="text-sm font-semibold">Product</h3>
-              <ul className="mt-3 space-y-2">
-                {PRODUCT_LINKS.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      to={link.to}
-                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {/* Product */}
+          <nav aria-label="Product">
+            <h2 className="text-sm font-semibold text-foreground">Product</h2>
+            <ul className="mt-3 space-y-2.5">
+              {PRODUCT_LINKS.map((link) => (
+                <li key={link.to}>
+                  <Link to={link.to} className={linkClass}>
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
 
-            <div>
-              <h3 className="text-sm font-semibold">Company</h3>
-              <ul className="mt-3 space-y-2">
-                {COMPANY_LINKS.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      to={link.to}
-                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold">Legal</h3>
-              <ul className="mt-3 space-y-2">
-                {LEGAL_LINKS.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      to={link.to}
-                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          {/* Account */}
+          <nav aria-label="Account">
+            <h2 className="text-sm font-semibold text-foreground">Account</h2>
+            <ul className="mt-3 space-y-2.5">
+              {ACCOUNT_LINKS.map((link) => (
+                <li key={link.to}>
+                  <Link to={link.to} className={linkClass}>
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
 
-        <div className="mt-10 border-t border-border pt-6">
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} NutriGuide AI. All rights reserved.
+        <div className="mt-10 space-y-1.5 border-t border-border pt-6">
+          <p className="text-xs text-muted-foreground">
+            © {year} NutriGuide AI. All rights reserved.
+          </p>
+          <p className="text-xs text-muted-foreground/80">
+            NutriGuide AI provides general nutrition information and is not a
+            substitute for professional medical advice.
           </p>
         </div>
       </div>

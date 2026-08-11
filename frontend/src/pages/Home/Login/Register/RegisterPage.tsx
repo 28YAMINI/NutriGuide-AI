@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
+import axios from 'axios'
 
 import { Eye, EyeOff, Leaf } from 'lucide-react'
+
 import type { ActivityLevel, Gender, Goal } from '../../../../types/user'
 import { useAuth } from '../../../../hooks/useAuth'
 import type { RegisterRequest } from '../../../../types/auth'
@@ -10,7 +12,6 @@ import { routePaths } from '../../../../routes/routePaths'
 import { Field, INPUT_CLASSES } from '../../../../components/ui/Field'
 import { Button } from '../../../../components/ui/Button'
 import { Alert } from '../../../../components/ui/Alert'
-import { getErrorMessage } from '../../../../utils/error'
 
 interface RegisterFormValues {
   firstName: string
@@ -31,7 +32,10 @@ const GENDER_OPTIONS: ReadonlyArray<{ value: Gender; label: string }> = [
   { value: 'OTHER', label: 'Other' },
 ]
 
-const ACTIVITY_OPTIONS: ReadonlyArray<{ value: ActivityLevel; label: string }> = [
+const ACTIVITY_OPTIONS: ReadonlyArray<{
+  value: ActivityLevel
+  label: string
+}> = [
   { value: 'SEDENTARY', label: 'Sedentary (little or no exercise)' },
   { value: 'LIGHT', label: 'Light (1–2 days/week)' },
   { value: 'MODERATE', label: 'Moderate (3–5 days/week)' },
@@ -44,6 +48,12 @@ const GOAL_OPTIONS: ReadonlyArray<{ value: Goal; label: string }> = [
   { value: 'GAIN_WEIGHT', label: 'Gain weight' },
   { value: 'MAINTAIN_WEIGHT', label: 'Maintain weight' },
 ]
+
+const TRUST_POINTS = [
+  'Evidence-informed recommendations',
+  'Budget and preference aware',
+  'Your data, yours only',
+] as const
 
 /**
  * Registration page.
@@ -110,7 +120,7 @@ export function RegisterPage() {
         <div className="hidden lg:block">
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Leaf className="h-5 w-5" />
+              <Leaf aria-hidden="true" className="h-5 w-5" />
             </span>
             <span className="text-lg font-semibold tracking-tight">
               NutriGuide<span className="text-primary">AI</span>
@@ -123,81 +133,122 @@ export function RegisterPage() {
             Tell us about your body, activity and goals. Your personalized
             nutrition plan starts from these details.
           </p>
-          <ul className="mt-8 space-y-3 text-sm text-muted-foreground">
-            <li className="flex items-center gap-2.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              Evidence-informed recommendations
-            </li>
-            <li className="flex items-center gap-2.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              Budget and preference aware
-            </li>
-            <li className="flex items-center gap-2.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              Your data, yours only
-            </li>
+          <ul className="mt-8 space-y-3.5 text-sm text-muted-foreground">
+            {TRUST_POINTS.map((point) => (
+              <li key={point} className="flex items-center gap-2.5">
+                <span
+                  aria-hidden="true"
+                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
+                />
+                {point}
+              </li>
+            ))}
           </ul>
         </div>
 
         {/* Form card */}
         <div className="w-full">
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
-            <h1 className="text-2xl font-semibold tracking-tight">Create your account</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Create your account
+            </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
               Free forever. No credit card required.
             </p>
 
-            {serverError && (
-              <Alert tone="error" className="mt-5">
+            {serverError ? (
+              <Alert
+                tone="error"
+                className="mt-5"
+                onDismiss={() => setServerError(null)}
+              >
                 {serverError}
               </Alert>
-            )}
+            ) : null}
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-6">
-              <section className="space-y-4">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {/* Account */}
+              <section aria-labelledby="account-heading" className="space-y-4">
+                <h2
+                  id="account-heading"
+                  className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >
                   Account
                 </h2>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="First name" htmlFor="firstName" error={errors.firstName?.message}>
+                  <Field
+                    label="First name"
+                    htmlFor="firstName"
+                    error={errors.firstName?.message}
+                    required
+                  >
                     <input
                       id="firstName"
                       type="text"
                       autoComplete="given-name"
                       aria-invalid={errors.firstName ? true : undefined}
+                      aria-describedby={
+                        errors.firstName ? 'firstName-error' : undefined
+                      }
                       className={INPUT_CLASSES}
                       {...register('firstName', {
                         required: 'First name is required',
-                        minLength: { value: 2, message: 'First name must be at least 2 characters' },
-                        maxLength: { value: 50, message: 'First name must be at most 50 characters' },
+                        minLength: {
+                          value: 2,
+                          message: 'First name must be at least 2 characters',
+                        },
+                        maxLength: {
+                          value: 50,
+                          message: 'First name must be at most 50 characters',
+                        },
                       })}
                     />
                   </Field>
 
-                  <Field label="Last name" htmlFor="lastName" error={errors.lastName?.message}>
+                  <Field
+                    label="Last name"
+                    htmlFor="lastName"
+                    error={errors.lastName?.message}
+                    required
+                  >
                     <input
                       id="lastName"
                       type="text"
                       autoComplete="family-name"
                       aria-invalid={errors.lastName ? true : undefined}
+                      aria-describedby={
+                        errors.lastName ? 'lastName-error' : undefined
+                      }
                       className={INPUT_CLASSES}
                       {...register('lastName', {
                         required: 'Last name is required',
-                        minLength: { value: 2, message: 'Last name must be at least 2 characters' },
-                        maxLength: { value: 50, message: 'Last name must be at most 50 characters' },
+                        minLength: {
+                          value: 2,
+                          message: 'Last name must be at least 2 characters',
+                        },
+                        maxLength: {
+                          value: 50,
+                          message: 'Last name must be at most 50 characters',
+                        },
                       })}
                     />
                   </Field>
                 </div>
 
-                <Field label="Email" htmlFor="email" error={errors.email?.message}>
+                <Field
+                  label="Email"
+                  htmlFor="email"
+                  error={errors.email?.message}
+                  required
+                >
                   <input
                     id="email"
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
                     aria-invalid={errors.email ? true : undefined}
+                    aria-describedby={errors.email ? 'email-error' : undefined}
                     className={INPUT_CLASSES}
                     {...register('email', {
                       required: 'Email is required',
@@ -209,7 +260,12 @@ export function RegisterPage() {
                   />
                 </Field>
 
-                <Field label="Password" htmlFor="password" error={errors.password?.message}>
+                <Field
+                  label="Password"
+                  htmlFor="password"
+                  error={errors.password?.message}
+                  required
+                >
                   <div className="relative">
                     <input
                       id="password"
@@ -217,19 +273,29 @@ export function RegisterPage() {
                       autoComplete="new-password"
                       placeholder="At least 8 characters"
                       aria-invalid={errors.password ? true : undefined}
-                      className={INPUT_CLASSES}
+                      aria-describedby={
+                        errors.password ? 'password-error' : undefined
+                      }
+                      className={`${INPUT_CLASSES} pr-10`}
                       {...register('password', {
                         required: 'Password is required',
-                        minLength: { value: 8, message: 'Password must be at least 8 characters' },
+                        minLength: {
+                          value: 8,
+                          message: 'Password must be at least 8 characters',
+                        },
                       })}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((show) => !show)}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground transition-colors hover:text-foreground"
+                      className="absolute inset-y-0 right-0 flex cursor-pointer items-center pr-3 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? (
+                        <EyeOff aria-hidden="true" className="h-4 w-4" />
+                      ) : (
+                        <Eye aria-hidden="true" className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                 </Field>
@@ -237,13 +303,22 @@ export function RegisterPage() {
 
               <div className="border-t border-border" />
 
-              <section className="space-y-4">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {/* Health profile */}
+              <section aria-labelledby="health-heading" className="space-y-4">
+                <h2
+                  id="health-heading"
+                  className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >
                   Health profile
                 </h2>
 
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <Field label="Age" htmlFor="age" error={errors.age?.message}>
+                  <Field
+                    label="Age"
+                    htmlFor="age"
+                    error={errors.age?.message}
+                    required
+                  >
                     <input
                       id="age"
                       type="number"
@@ -252,16 +327,28 @@ export function RegisterPage() {
                       max={120}
                       placeholder="e.g. 24"
                       aria-invalid={errors.age ? true : undefined}
+                      aria-describedby={errors.age ? 'age-error' : undefined}
                       className={INPUT_CLASSES}
                       {...register('age', {
                         required: 'Age is required',
-                        min: { value: 13, message: 'Age must be between 13 and 120' },
-                        max: { value: 120, message: 'Age must be between 13 and 120' },
+                        min: {
+                          value: 13,
+                          message: 'Age must be between 13 and 120',
+                        },
+                        max: {
+                          value: 120,
+                          message: 'Age must be between 13 and 120',
+                        },
                       })}
                     />
                   </Field>
 
-                  <Field label="Height (cm)" htmlFor="height" error={errors.height?.message}>
+                  <Field
+                    label="Height (cm)"
+                    htmlFor="height"
+                    error={errors.height?.message}
+                    required
+                  >
                     <input
                       id="height"
                       type="number"
@@ -270,16 +357,28 @@ export function RegisterPage() {
                       max={250}
                       placeholder="e.g. 170"
                       aria-invalid={errors.height ? true : undefined}
+                      aria-describedby={errors.height ? 'height-error' : undefined}
                       className={INPUT_CLASSES}
                       {...register('height', {
                         required: 'Height is required',
-                        min: { value: 50, message: 'Height must be between 50 and 250 cm' },
-                        max: { value: 250, message: 'Height must be between 50 and 250 cm' },
+                        min: {
+                          value: 50,
+                          message: 'Height must be between 50 and 250 cm',
+                        },
+                        max: {
+                          value: 250,
+                          message: 'Height must be between 50 and 250 cm',
+                        },
                       })}
                     />
                   </Field>
 
-                  <Field label="Weight (kg)" htmlFor="weight" error={errors.weight?.message}>
+                  <Field
+                    label="Weight (kg)"
+                    htmlFor="weight"
+                    error={errors.weight?.message}
+                    required
+                  >
                     <input
                       id="weight"
                       type="number"
@@ -288,21 +387,34 @@ export function RegisterPage() {
                       max={300}
                       placeholder="e.g. 65"
                       aria-invalid={errors.weight ? true : undefined}
+                      aria-describedby={errors.weight ? 'weight-error' : undefined}
                       className={INPUT_CLASSES}
                       {...register('weight', {
                         required: 'Weight is required',
-                        min: { value: 20, message: 'Weight must be between 20 and 300 kg' },
-                        max: { value: 300, message: 'Weight must be between 20 and 300 kg' },
+                        min: {
+                          value: 20,
+                          message: 'Weight must be between 20 and 300 kg',
+                        },
+                        max: {
+                          value: 300,
+                          message: 'Weight must be between 20 and 300 kg',
+                        },
                       })}
                     />
                   </Field>
                 </div>
 
-                <Field label="Gender" htmlFor="gender" error={errors.gender?.message}>
+                <Field
+                  label="Gender"
+                  htmlFor="gender"
+                  error={errors.gender?.message}
+                  required
+                >
                   <select
                     id="gender"
+                    className={`${INPUT_CLASSES} cursor-pointer`}
                     aria-invalid={errors.gender ? true : undefined}
-                    className={INPUT_CLASSES}
+                    aria-describedby={errors.gender ? 'gender-error' : undefined}
                     {...register('gender', { required: 'Gender is required' })}
                   >
                     <option value="" disabled>
@@ -320,12 +432,18 @@ export function RegisterPage() {
                   label="Activity level"
                   htmlFor="activityLevel"
                   error={errors.activityLevel?.message}
+                  required
                 >
                   <select
                     id="activityLevel"
+                    className={`${INPUT_CLASSES} cursor-pointer`}
                     aria-invalid={errors.activityLevel ? true : undefined}
-                    className={INPUT_CLASSES}
-                    {...register('activityLevel', { required: 'Activity level is required' })}
+                    aria-describedby={
+                      errors.activityLevel ? 'activityLevel-error' : undefined
+                    }
+                    {...register('activityLevel', {
+                      required: 'Activity level is required',
+                    })}
                   >
                     <option value="" disabled>
                       Select activity level
@@ -338,11 +456,17 @@ export function RegisterPage() {
                   </select>
                 </Field>
 
-                <Field label="Goal" htmlFor="goal" error={errors.goal?.message}>
+                <Field
+                  label="Goal"
+                  htmlFor="goal"
+                  error={errors.goal?.message}
+                  required
+                >
                   <select
                     id="goal"
+                    className={`${INPUT_CLASSES} cursor-pointer`}
                     aria-invalid={errors.goal ? true : undefined}
-                    className={INPUT_CLASSES}
+                    aria-describedby={errors.goal ? 'goal-error' : undefined}
                     {...register('goal', { required: 'Goal is required' })}
                   >
                     <option value="" disabled>
@@ -357,7 +481,12 @@ export function RegisterPage() {
                 </Field>
               </section>
 
-              <Button type="submit" size="lg" className="w-full" isLoading={isSubmitting}>
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                isLoading={isSubmitting}
+              >
                 {isSubmitting ? 'Creating account…' : 'Create account'}
               </Button>
             </form>
@@ -376,4 +505,18 @@ export function RegisterPage() {
       </div>
     </div>
   )
+}
+
+/**
+ * Extracts a human-readable message from an API/network error.
+ * Spring Boot error bodies usually carry { message: "..." }.
+ */
+function getErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { message?: string } | undefined
+    if (data?.message) return data.message
+    return error.message
+  }
+  if (error instanceof Error && error.message) return error.message
+  return 'Something went wrong. Please try again.'
 }

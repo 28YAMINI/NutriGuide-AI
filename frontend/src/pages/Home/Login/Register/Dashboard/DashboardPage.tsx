@@ -9,13 +9,18 @@ import {
   Target,
   User as UserIcon,
 } from 'lucide-react'
-import type { ActivityLevel, Gender, Goal, UserResponse } from '../../../../../types/user'
+
+import type {
+  ActivityLevel,
+  Gender,
+  Goal,
+  UserResponse,
+} from '../../../../../types/user'
 import { useAuth } from '../../../../../hooks/useAuth'
 import { buttonClassName } from '../../../../../components/ui/Button'
 import { PageState } from '../../../../../components/ui/PageState'
 import { routePaths } from '../../../../../routes/routePaths'
 import { Card } from '../../../../../components/ui/Card'
-import { formatCalories } from '../../../../../utils/format'
 
 /* ---------- label maps (same values the backend enums use) ---------- */
 
@@ -25,10 +30,11 @@ const GENDER_LABELS: Record<Gender, string> = {
   OTHER: 'Other',
 }
 
-const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
+
+const ACTIVITY_SHORT_LABELS: Record<ActivityLevel, string> = {
   SEDENTARY: 'Sedentary',
-  LIGHT: 'Lightly active',
-  MODERATE: 'Moderately active',
+  LIGHT: 'Light',
+  MODERATE: 'Moderate',
   ACTIVE: 'Active',
   VERY_ACTIVE: 'Very active',
 }
@@ -83,17 +89,34 @@ function dailyCaloriesOf(user: UserResponse): number {
   return Math.round(bmr * multiplier + adjustment)
 }
 
+/** Formats calories with thousands separators, e.g. 2,143. */
+function formatCalories(calories: number): string {
+  return Math.round(calories).toLocaleString()
+}
+
 /* ---------- loading skeleton ---------- */
 
 function DashboardSkeleton() {
   return (
-    <div className="animate-pulse space-y-6">
-      <div className="h-8 w-64 rounded-lg bg-muted" />
-      <div className="h-4 w-80 max-w-full rounded bg-muted" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-36 rounded-xl border border-border bg-card" />
-        ))}
+    <div
+      aria-hidden="true"
+      className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8"
+    >
+      <div className="animate-pulse space-y-6">
+        <div className="h-8 w-64 rounded-lg bg-muted" />
+        <div className="h-4 w-80 max-w-full rounded bg-muted" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-36 rounded-xl border border-border bg-card"
+            />
+          ))}
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="h-56 rounded-xl border border-border bg-card" />
+          <div className="h-56 rounded-xl border border-border bg-card" />
+        </div>
       </div>
     </div>
   )
@@ -116,10 +139,7 @@ export function DashboardPage() {
         title="No profile data"
         message="Sign in and complete your health profile to see your personalized daily targets."
         action={
-          <Link
-            to={routePaths.login}
-            className={buttonClassName('primary', 'md')}
-          >
+          <Link to={routePaths.login} className={buttonClassName('primary', 'md')}>
             Sign in
           </Link>
         }
@@ -153,7 +173,7 @@ export function DashboardPage() {
     {
       icon: Activity,
       label: 'Activity',
-      value: ACTIVITY_LABELS[user.activityLevel].split(' ')[0],
+      value: ACTIVITY_SHORT_LABELS[user.activityLevel],
       caption: 'Your activity level',
     },
   ] as const
@@ -198,7 +218,9 @@ export function DashboardPage() {
                 <stat.icon aria-hidden="true" className="h-4 w-4" />
               </span>
             </div>
-            <p className="mt-4 text-2xl font-bold tracking-tight">{stat.value}</p>
+            <p className="mt-4 text-2xl font-bold tracking-tight">
+              {stat.value}
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">{stat.caption}</p>
           </Card>
         ))}
@@ -249,8 +271,8 @@ export function DashboardPage() {
                 className="mt-0.5 h-4 w-4 shrink-0 text-primary"
               />
               <span>
-                <strong className="font-medium text-foreground">Activity</strong> — your
-                level multiplies BMR by{' '}
+                <strong className="font-medium text-foreground">Activity</strong>{' '}
+                — your level multiplies BMR by{' '}
                 {ACTIVITY_MULTIPLIERS[user.activityLevel]}×.
               </span>
             </li>

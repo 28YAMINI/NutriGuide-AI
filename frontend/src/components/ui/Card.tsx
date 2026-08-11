@@ -1,42 +1,57 @@
 import type { ReactNode } from 'react'
 
 interface CardProps {
-  /** Optional header title. */
-  title?: string
-  /** Optional muted description under the title. */
-  description?: string
-  /** Optional right-aligned header action (link or button). */
+  /** Optional heading rendered in the card header row. */
+  title?: ReactNode
+  /** Optional muted description below the title. */
+  description?: ReactNode
+  /** Optional element on the right of the header row (link, button). */
   action?: ReactNode
-  children: ReactNode
+  /** Removes default body padding for custom layouts. */
+  noPadding?: boolean
   className?: string
+  children: ReactNode
 }
 
-/** Shared surface for grouping related content with an optional header. */
+/**
+ * Shared card primitive.
+ *
+ * Standardizes the surface every section uses: subtle border, soft
+ * shadow, rounded corners, and an optional header (title / description
+ * / action). Consumers pass className only to tweak layout.
+ */
 export function Card({
   title,
   description,
   action,
-  children,
+  noPadding = false,
   className = '',
+  children,
 }: CardProps) {
+  const hasHeader = Boolean(title || description || action)
+
   return (
-    <div className={`rounded-xl border border-border bg-card ${className}`.trim()}>
-      {title || action ? (
-        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+    <div
+      className={`rounded-xl border border-border bg-card text-card-foreground shadow-sm ${className}`.trim()}
+    >
+      {hasHeader ? (
+        <header className="flex items-start justify-between gap-4 border-b border-border/60 px-5 py-4">
           <div className="min-w-0">
             {title ? (
-              <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+              <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
             ) : null}
             {description ? (
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className="mt-0.5 text-sm text-muted-foreground">
                 {description}
               </p>
             ) : null}
           </div>
-          {action}
-        </div>
+
+          {action ? <div className="shrink-0">{action}</div> : null}
+        </header>
       ) : null}
-      <div className="p-5">{children}</div>
+
+      <div className={noPadding ? '' : 'px-5 py-5'}>{children}</div>
     </div>
   )
 }

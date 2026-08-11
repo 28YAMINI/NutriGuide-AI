@@ -1,3 +1,5 @@
+
+
 /**
  * Food category values — must match the backend FoodCategory enum.
  */
@@ -18,6 +20,7 @@ export type FoodCategory =
  * All macro fields are per serving.
  */
 export interface FoodItem {
+  foodId: number
   id: number
   name: string
   description: string

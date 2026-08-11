@@ -8,7 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.validation.FieldError;
+
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -72,6 +72,18 @@ public class GlobalExceptionHandler {
 
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorized(
+            UnauthorizedException ex, HttpServletRequest request) {
+
+        log.warn("Unauthorized: {}", ex.getMessage());
+
+        return buildResponse(
+                HttpStatus.UNAUTHORIZED,
+                ex.getMessage(),
+                request
+        );
+    }
 
     // ──────────────────────────────────────────────
     // 400 BAD REQUEST — Bean Validation Errors (@Valid on DTOs)
@@ -119,6 +131,18 @@ public class GlobalExceptionHandler {
 
         return buildResponse(HttpStatus.BAD_REQUEST,
                 "Invalid request body. Please check your JSON format.", request);
+    }
+    @ExceptionHandler(DuplicateFoodItemException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateFoodItem(
+            DuplicateFoodItemException ex, HttpServletRequest request) {
+
+        log.warn("Duplicate food item: {}", ex.getMessage());
+
+        return buildResponse(
+                HttpStatus.CONFLICT,
+                ex.getMessage(),
+                request
+        );
     }
 
     // ──────────────────────────────────────────────

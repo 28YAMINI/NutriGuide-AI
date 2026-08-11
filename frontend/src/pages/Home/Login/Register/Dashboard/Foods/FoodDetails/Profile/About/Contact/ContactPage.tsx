@@ -1,108 +1,122 @@
-import type { ComponentType } from 'react'
+import { Globe, Mail, MapPin, Phone } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
-import { Clock, Mail } from 'lucide-react'
-
-interface IconProps {
-  className?: string
-}
-
-/** GitHub mark — inline SVG because lucide no longer ships brand icons. */
-function GitHubIcon({ className }: IconProps) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-    >
-      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-    </svg>
-  )
-}
-
-interface ContactChannel {
-  icon: ComponentType<{ className?: string }>
-  title: string
+interface ContactMethod {
+  icon: LucideIcon
+  label: string
   value: string
-  description: string
+  /** When present, the whole card links out (mailto / tel / URL). */
   href?: string
 }
 
-const CHANNELS: ReadonlyArray<ContactChannel> = [
+// TODO: replace with the project's real contact details.
+const CONTACT_METHODS: ReadonlyArray<ContactMethod> = [
   {
     icon: Mail,
-    title: 'Email',
-    value: 'support@nutriguideai.com',
-    href: 'mailto:support@nutriguideai.com',
-    description: 'For questions, feedback and issues.',
+    label: 'Email',
+    value: 'hello@nutriguideai.app',
+    href: 'mailto:hello@nutriguideai.app',
   },
   {
-    icon: GitHubIcon,
-    title: 'GitHub',
-    value: 'github.com/your-username/nutriguide-ai',
-    href: 'https://github.com/your-username/nutriguide-ai',
-    description: 'Open source code, issues and contributions.',
+    icon: Phone,
+    label: 'Phone',
+    value: '+94 700 000 000',
+    href: 'tel:+94700000000',
   },
   {
-    icon: Clock,
-    title: 'Response time',
-    value: '1–2 business days',
-    description: 'We typically reply within two working days.',
+    icon: MapPin,
+    label: 'Location',
+    value: 'Colombo, Sri Lanka',
+  },
+  {
+    icon: Globe,
+    label: 'Website',
+    value: 'nutriguideai.app',
+    href: 'https://nutriguideai.app',
   },
 ]
 
-/** Public contact page — direct channels, no fake form. */
+// TODO: replace with the project's real social profiles.
+const SOCIAL_LINKS = [
+  { label: 'GitHub', href: 'https://github.com/your-handle' },
+  { label: 'LinkedIn', href: 'https://www.linkedin.com/in/your-handle' },
+] as const
+
+/**
+ * Contact page.
+ *
+ * Static contact channels — the backend has no messaging endpoint, so
+ * cards link out via mailto/tel/URL and social profiles open
+ * externally. Socials are plain text links because lucide-react no
+ * longer ships brand icons.
+ */
 export function ContactPage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
-      <header className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight">Get in touch</h1>
-        <p className="mx-auto mt-3 max-w-md text-muted-foreground">
-          Have a question, found a bug, or want to contribute? We'd love to
-          hear from you.
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-2xl text-center">
+        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+          Get in touch
+        </span>
+        <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl">
+          We'd love to hear from you
+        </h1>
+        <p className="mt-5 text-muted-foreground">
+          Questions, feedback, or partnership ideas — reach out through any
+          channel below.
         </p>
-      </header>
+      </div>
 
-      <div className="mt-10 grid gap-4 sm:grid-cols-3">
-        {CHANNELS.map((channel) => {
-          const content = (
-            <>
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <channel.icon aria-hidden="true" className="h-5 w-5" />
+      <div className="mx-auto mt-12 grid max-w-4xl gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {CONTACT_METHODS.map((method) => {
+          const card = (
+            <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-border bg-card p-6 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <method.icon aria-hidden="true" className="h-5 w-5" />
               </span>
-              <h2 className="mt-4 text-sm font-semibold">{channel.title}</h2>
-              <p className="mt-1 break-words text-sm font-medium text-primary">
-                {channel.value}
+              <h2 className="mt-4 font-semibold">{method.label}</h2>
+              <p className="mt-1 break-all text-sm text-muted-foreground">
+                {method.value}
               </p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {channel.description}
-              </p>
-            </>
+            </div>
           )
 
-          return channel.href ? (
+          return method.href ? (
             <a
-              key={channel.title}
-              href={channel.href}
-              className="rounded-xl border border-border bg-card p-6 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              key={method.label}
+              href={method.href}
+              className="rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {content}
+              {card}
             </a>
           ) : (
-            <div
-              key={channel.title}
-              className="rounded-xl border border-border bg-card p-6"
-            >
-              {content}
-            </div>
+            <div key={method.label}>{card}</div>
           )
         })}
       </div>
 
-      <p className="mt-8 text-center text-xs text-muted-foreground">
-        For urgent health concerns, please consult a qualified healthcare
-        professional.
-      </p>
+      {/* Social links — text-only, no brand icons needed */}
+      <div className="mt-14 text-center">
+        <h2 className="text-lg font-semibold tracking-tight">Follow us</h2>
+        <div className="mt-4 flex items-center justify-center gap-6 text-sm">
+          {SOCIAL_LINKS.map((social, index) => (
+            <div key={social.label} className="flex items-center gap-6">
+              {index > 0 ? (
+                <span aria-hidden="true" className="text-muted-foreground/40">
+                  ·
+                </span>
+              ) : null}
+              <a
+                href={social.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-sm font-medium text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {social.label}
+              </a>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

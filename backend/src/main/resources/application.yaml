@@ -19,3 +19,10 @@ app:
   jwt:
     secret: ThisIsASecretKeyForJwtAuthentication12345678901234567890
     expiration-ms: 86400000
+
+    spring doc:
+      swagger-ui:
+        operations-sorter: method
+        tags-sorter: alpha
+      api-docs:
+        path: /v3/api-docs

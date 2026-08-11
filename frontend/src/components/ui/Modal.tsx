@@ -1,120 +1,165 @@
 import { useEffect, useId, useRef } from 'react'
-import type { ReactNode } from 'react'
-
+import { createPortal } from 'react-dom'
+import type { KeyboardEvent, ReactNode } from 'react'
 import { X } from 'lucide-react'
 
-interface ModalProps {
-  /** Whether the dialog is visible. */
-  open: boolean
-  /** Called on Escape and when the close button is pressed. */
-  onClose: () => void
-  /** Dialog title — used as the accessible name. */
-  title: string
-  /** Optional muted description under the title. */
-  description?: string
-  /** Dialog body. */
-  children: ReactNode
-  /** Optional footer row (e.g. Cancel / Save buttons). */
-  footer?: ReactNode
+type ModalSize = 'sm' | 'md' | 'lg'
+
+const SIZE_CLASSES: Record<ModalSize, string> = {
+  sm: 'max-w-md',
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',
 }
 
-/**
- * Accessible modal dialog.
- *
- * - role="dialog" + aria-modal, labelled by the title
- * - Escape closes; body scroll is locked while open
- * - Focus moves into the panel and is trapped inside it
- * - Bottom-sheet on mobile, centered from sm up
- */
-export function Modal({ open, onClose, title, description, children, footer }: ModalProps) {
-  const titleId = useId()
-  const panelRef = useRef<HTMLDivElement>(null)
+interface ModalProps {
+  open: boolean
+  onClose: () => void
+  /** Dialog heading — used as the accessible name. */
+  title?: string
+  /** Optional muted line under the title. */
+  description?: string
+  /** Action buttons rendered in the sticky footer. */
+  footer?: ReactNode
+  size?: ModalSize
+  /** Close when clicking the backdrop. Defaults to true. */
+  closeOnBackdrop?: boolean
+  children: ReactNode
+}
 
+function ModalContent({
+  onClose,
+  title,
+  description,
+  footer,
+  size = 'md',
+  closeOnBackdrop = true,
+  children,
+}: ModalProps) {
+  const titleId = useId()
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  // Focus the first control, lock body scroll, restore focus on close.
   useEffect(() => {
-    if (!open) return
+    const previousFocus = document.activeElement as HTMLElement | null
+    const firstFocusable = dialogRef.current?.querySelector<HTMLElement>(
+      'button:not([disabled]), a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    )
+    ;(firstFocusable ?? dialogRef.current)?.focus()
 
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
 
-    panelRef.current?.focus()
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-        return
-      }
-
-      // Trap Tab navigation inside the dialog.
-      if (event.key !== 'Tab' || !panelRef.current) return
-
-      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      )
-      if (focusable.length === 0) return
-
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-
     return () => {
       document.body.style.overflow = previousOverflow
-      window.removeEventListener('keydown', handleKeyDown)
+      previousFocus?.focus()
     }
-  }, [open, onClose])
+  }, [])
 
-  if (!open) return null
+  // Close on Escape.
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
+  // Keep Tab focus within the dialog.
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return
+
+    const focusables = dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    )
+    if (!focusables || focusables.length === 0) return
+
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
-
-      {/* Panel */}
       <div
-        ref={panelRef}
+        aria-hidden="true"
+        onClick={closeOnBackdrop ? onClose : undefined}
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+      />
+
+      {/* Dialog */}
+      <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        className="relative flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl border border-border bg-card shadow-2xl outline-none"
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : 'Dialog'}
+        onKeyDown={handleKeyDown}
+        className={`relative z-10 flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-t-2xl border border-border bg-card text-card-foreground shadow-xl sm:m-4 sm:rounded-2xl ${SIZE_CLASSES[size]}`}
       >
-        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-5 py-4">
-          <div className="min-w-0">
-            <h2 id={titleId} className="text-base font-semibold text-foreground">
-              {title}
-            </h2>
-            {description ? (
-              <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
-            ) : null}
-          </div>
+        {title || description ? (
+          <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+            <div className="min-w-0">
+              {title ? (
+                <h2 id={titleId} className="text-base font-semibold tracking-tight">
+                  {title}
+                </h2>
+              ) : null}
+              {description ? (
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {description}
+                </p>
+              ) : null}
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close dialog"
+              className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X aria-hidden="true" className="h-4 w-4" />
+            </button>
+          </header>
+        ) : (
           <button
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="absolute right-4 top-4 z-10 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X aria-hidden="true" className="h-4 w-4" />
           </button>
-        </header>
+        )}
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="overflow-y-auto px-5 py-4">{children}</div>
 
         {footer ? (
-          <footer className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-4">
+          <footer className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
             {footer}
           </footer>
         ) : null}
       </div>
     </div>
   )
+}
+
+/**
+ * Accessible modal dialog rendered in a portal.
+ *
+ * Handles Escape-to-close, backdrop close, focus trapping, body scroll
+ * lock, and focus restore. Docks to the bottom like a sheet on mobile,
+ * centers on larger screens.
+ */
+export function Modal({ open, ...props }: ModalProps) {
+  if (!open) return null
+
+  return createPortal(<ModalContent open={false} {...props} />, document.body)
 }

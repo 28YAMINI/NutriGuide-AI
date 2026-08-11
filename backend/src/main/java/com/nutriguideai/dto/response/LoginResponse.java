@@ -1,8 +1,7 @@
 package com.nutriguideai.dto.response;
 
-
-
 import com.nutriguideai.entity.User;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -10,10 +9,25 @@ import lombok.Getter;
 @Getter
 @Builder
 @AllArgsConstructor
+@Schema(description = "Successful login — JWT token plus the user profile.")
 public class LoginResponse {
 
+    @Schema(
+            description = "JWT bearer token. Send as Authorization: Bearer <token>",
+            example = "eyJhbGciOiJIUzI1NiJ9..."
+    )
     private final String token;
+
+    @Schema(
+            description = "Always \"Bearer\"",
+            example = "Bearer"
+    )
     private final String tokenType;
+
+    @Schema(
+            description = "The authenticated user's profile",
+            implementation = UserResponse.class
+    )
     private final UserResponse user;
 
     /**

@@ -1,20 +1,27 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
+import axios from 'axios'
 
 import { Eye, EyeOff, Leaf } from 'lucide-react'
+
 import { useAuth } from '../../../hooks/useAuth'
 import { routePaths } from '../../../routes/routePaths'
 import type { LoginRequest } from '../../../types/auth'
 import { Field, INPUT_CLASSES } from '../../../components/ui/Field'
 import { Button } from '../../../components/ui/Button'
 import { Alert } from '../../../components/ui/Alert'
-import { getErrorMessage } from '../../../utils/error'
 
 interface LoginFormValues {
   email: string
   password: string
 }
+
+const TRUST_POINTS = [
+  'Your profile and goals, ready',
+  'Fresh recommendations as you update them',
+  'Secure, private health data',
+] as const
 
 /**
  * Sign-in page.
@@ -65,7 +72,7 @@ export function LoginPage() {
         <div className="hidden lg:block">
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Leaf className="h-5 w-5" />
+              <Leaf aria-hidden="true" className="h-5 w-5" />
             </span>
             <span className="text-lg font-semibold tracking-tight">
               NutriGuide<span className="text-primary">AI</span>
@@ -78,19 +85,16 @@ export function LoginPage() {
             Sign in to pick up your personalized nutrition guidance exactly
             where you left off.
           </p>
-          <ul className="mt-8 space-y-3 text-sm text-muted-foreground">
-            <li className="flex items-center gap-2.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              Your profile and goals, ready
-            </li>
-            <li className="flex items-center gap-2.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              Fresh recommendations as you update them
-            </li>
-            <li className="flex items-center gap-2.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              Secure, private health data
-            </li>
+          <ul className="mt-8 space-y-3.5 text-sm text-muted-foreground">
+            {TRUST_POINTS.map((point) => (
+              <li key={point} className="flex items-center gap-2.5">
+                <span
+                  aria-hidden="true"
+                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
+                />
+                {point}
+              </li>
+            ))}
           </ul>
         </div>
 
@@ -102,26 +106,36 @@ export function LoginPage() {
               Enter your email and password to continue.
             </p>
 
-            {registered && (
+            {registered ? (
               <Alert tone="success" className="mt-5">
                 Registration successful. Please sign in.
               </Alert>
-            )}
+            ) : null}
 
-            {serverError && (
-              <Alert tone="error" className="mt-5">
+            {serverError ? (
+              <Alert
+                tone="error"
+                className="mt-5"
+                onDismiss={() => setServerError(null)}
+              >
                 {serverError}
               </Alert>
-            )}
+            ) : null}
 
-            <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-4">
-              <Field label="Email" htmlFor="email" error={errors.email?.message}>
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-5">
+              <Field
+                label="Email"
+                htmlFor="email"
+                error={errors.email?.message}
+                required
+              >
                 <input
                   id="email"
                   type="email"
                   autoComplete="email"
                   placeholder="you@example.com"
                   aria-invalid={errors.email ? true : undefined}
+                  aria-describedby={errors.email ? 'email-error' : undefined}
                   className={INPUT_CLASSES}
                   {...register('email', {
                     required: 'Email is required',
@@ -133,32 +147,50 @@ export function LoginPage() {
                 />
               </Field>
 
-              <Field label="Password" htmlFor="password" error={errors.password?.message}>
+              <Field
+                label="Password"
+                htmlFor="password"
+                error={errors.password?.message}
+                required
+              >
                 <div className="relative">
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     aria-invalid={errors.password ? true : undefined}
+                    aria-describedby={errors.password ? 'password-error' : undefined}
                     className={`${INPUT_CLASSES} pr-10`}
                     {...register('password', {
                       required: 'Password is required',
-                      minLength: { value: 8, message: 'Password must be at least 8 characters' },
+                      minLength: {
+                        value: 8,
+                        message: 'Password must be at least 8 characters',
+                      },
                     })}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((show) => !show)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground transition-colors hover:text-foreground"
+                    className="absolute inset-y-0 right-0 flex cursor-pointer items-center pr-3 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff aria-hidden="true" className="h-4 w-4" />
+                    ) : (
+                      <Eye aria-hidden="true" className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </Field>
 
-              <Button type="submit" size="lg" className="w-full" isLoading={isSubmitting}>
-                Sign in
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                isLoading={isSubmitting}
+              >
+                {isSubmitting ? 'Signing in…' : 'Sign in'}
               </Button>
             </form>
 
@@ -176,4 +208,18 @@ export function LoginPage() {
       </div>
     </div>
   )
+}
+
+/**
+ * Extracts a human-readable message from an API/network error.
+ * Spring Boot error bodies usually carry { message: "..." }.
+ */
+function getErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { message?: string } | undefined
+    if (data?.message) return data.message
+    return error.message
+  }
+  if (error instanceof Error && error.message) return error.message
+  return 'Something went wrong. Please try again.'
 }

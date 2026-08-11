@@ -25,7 +25,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Authentication", description = "Endpoints for user registration and login")
+@Tag(
+        name = "Authentication",
+        description = "Public endpoints for registering and signing in."
+)
 public class AuthController {
 
     private final AuthService authService;
@@ -37,17 +40,30 @@ public class AuthController {
     @PostMapping("/register")
     @Operation(
             summary = "Register a new user",
-            description = "Creates a new user account with the provided details. " +
-                    "Returns the created user information without a JWT token. " +
-                    "The user must login after registration to receive a token."
+            description = "Creates a new user account with the provided details "
+                    + "and initial health profile. No JWT token is issued. "
+                    + "The user must sign in afterwards via POST /api/auth/login.",
+            security = {}
     )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "User registered successfully",
-                    content = @Content(schema = @Schema(implementation = RegisterResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Validation failed — invalid input"),
-            @ApiResponse(responseCode = "409", description = "Email already registered")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Account created successfully",
+                    content = @Content(
+                            schema = @Schema(implementation = RegisterResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Validation failed"
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "Email is already registered"
+            )
     })
-    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<RegisterResponse> register(
+            @Valid @RequestBody RegisterRequest request) {
 
         log.info("POST /api/auth/register — email: {}", request.getEmail());
 
@@ -62,17 +78,30 @@ public class AuthController {
 
     @PostMapping("/login")
     @Operation(
-            summary = "Authenticate a user",
-            description = "Authenticates the user with email and password. " +
-                    "Returns a signed JWT token on successful authentication."
+            summary = "Sign in",
+            description = "Authenticates the user with email and password "
+                    + "and returns a signed JWT bearer token.",
+            security = {}
     )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Login successful — JWT token returned",
-                    content = @Content(schema = @Schema(implementation = LoginResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Validation failed — invalid input"),
-            @ApiResponse(responseCode = "401", description = "Invalid email or password")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Authenticated successfully",
+                    content = @Content(
+                            schema = @Schema(implementation = LoginResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Validation failed"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Invalid email or password"
+            )
     })
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request) {
 
         log.info("POST /api/auth/login — email: {}", request.getEmail());
 
