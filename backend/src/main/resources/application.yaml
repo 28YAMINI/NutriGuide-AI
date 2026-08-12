@@ -4,6 +4,12 @@ server:
 spring:
   application:
     name: NutirGuideAI
+    spring:
+      jpa:
+        open-in-view: false
+        hibernate:
+          ddl-auto: update
+        show-sql: true
 
   datasource:
     url: jdbc:mysql://localhost:3306/nutriguide_ai
@@ -11,6 +17,7 @@ spring:
     password: root
 
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
     show-sql: true
@@ -19,3 +26,10 @@ app:
   jwt:
     secret: ThisIsASecretKeyForJwtAuthentication12345678901234567890
     expiration-ms: 86400000
+
+    spring doc:
+      swagger-ui:
+        operations-sorter: method
+        tags-sorter: alpha
+      api-docs:
+        path: /v3/api-docs

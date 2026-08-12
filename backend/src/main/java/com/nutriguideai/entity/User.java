@@ -6,7 +6,7 @@ import com.nutriguideai.enums.Goal;
 import com.nutriguideai.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
-
+@Getter
 @Entity
 @Table(name = "users")
 @Data

@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class NutriGuideAiApplication {
+public class NuriGuideAiApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(NutriGuideAiApplication.class, args);
+        SpringApplication.run(NuriGuideAiApplication.class, args);
     }
 
 }
