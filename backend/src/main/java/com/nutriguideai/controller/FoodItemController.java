@@ -1,5 +1,6 @@
 package com.nutriguideai.controller;
 
+import com.nutriguideai.config.StandardErrorResponses;
 import com.nutriguideai.dto.request.CreateFoodItemRequest;
 import com.nutriguideai.dto.request.UpdateFoodItemRequest;
 import com.nutriguideai.dto.response.FoodItemResponse;
@@ -58,6 +59,7 @@ public class FoodItemController {
             summary = "Add a food",
             description = "Creates a new food item. ADMIN role required."
     )
+    @StandardErrorResponses
     @ApiResponses({
             @ApiResponse(
                     responseCode = "201",
@@ -65,22 +67,6 @@ public class FoodItemController {
                     content = @Content(
                             schema = @Schema(implementation = FoodItemResponse.class)
                     )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Validation failed"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Missing or invalid token"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Requires ADMIN role"
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Food name already exists"
             )
     })
     public ResponseEntity<FoodItemResponse> createFoodItem(
@@ -102,6 +88,7 @@ public class FoodItemController {
             summary = "List all foods",
             description = "Returns the complete food catalog. Public endpoint."
     )
+    @StandardErrorResponses
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -135,6 +122,7 @@ public class FoodItemController {
             required = true,
             example = "1"
     )
+    @StandardErrorResponses
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -142,10 +130,6 @@ public class FoodItemController {
                     content = @Content(
                             schema = @Schema(implementation = FoodItemResponse.class)
                     )
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Food not found"
             )
     })
     public ResponseEntity<FoodItemResponse> getFoodItemById(
@@ -174,6 +158,7 @@ public class FoodItemController {
             required = true,
             example = "1"
     )
+    @StandardErrorResponses
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -181,26 +166,6 @@ public class FoodItemController {
                     content = @Content(
                             schema = @Schema(implementation = FoodItemResponse.class)
                     )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Validation failed"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Missing or invalid token"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Requires ADMIN role"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Food not found"
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Food name already exists"
             )
     })
     public ResponseEntity<FoodItemResponse> updateFoodItem(
@@ -230,22 +195,11 @@ public class FoodItemController {
             required = true,
             example = "1"
     )
+    @StandardErrorResponses
     @ApiResponses({
             @ApiResponse(
                     responseCode = "204",
                     description = "Deleted"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Missing or invalid token"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Requires ADMIN role"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Food not found"
             )
     })
     public ResponseEntity<Void> deleteFoodItem(
@@ -274,6 +228,7 @@ public class FoodItemController {
             schema = @Schema(implementation = FoodCategory.class),
             example = "FRUITS"
     )
+    @StandardErrorResponses
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -283,10 +238,6 @@ public class FoodItemController {
                                     schema = @Schema(implementation = FoodItemResponse.class)
                             )
                     )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Invalid category value"
             )
     })
     public ResponseEntity<List<FoodItemResponse>> getFoodItemsByCategory(
@@ -314,6 +265,7 @@ public class FoodItemController {
             required = false,
             example = "apple"
     )
+    @StandardErrorResponses
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",

@@ -1,179 +1,165 @@
 package com.nutriguideai.exception;
 
-
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
-
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
-@RestControllerAdvice
+/**
+ * Translates every known failure into the shared ErrorResponse body.
+ * Filter-chain 401/403 (JWT, role checks) are handled by
+ * RestAuthenticationEntryPoint / RestAccessDeniedHandler instead.
+ */
 @Slf4j
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // ──────────────────────────────────────────────
-    // 409 CONFLICT — Duplicate Resource
-    // ──────────────────────────────────────────────
-
-    @ExceptionHandler(UserAlreadyExistsException.class)
-    public ResponseEntity<ErrorResponse> handleUserAlreadyExists(
-            UserAlreadyExistsException ex, HttpServletRequest request) {
-
-        log.warn("Conflict: {}", ex.getMessage());
-
-        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
-    }
-
-    // ──────────────────────────────────────────────
-    // 401 UNAUTHORIZED — Invalid Credentials
-    // ──────────────────────────────────────────────
-
-    @ExceptionHandler(InvalidCredentialsException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidCredentials(
-            InvalidCredentialsException ex, HttpServletRequest request) {
-
-        log.warn("Authentication failure: {}", ex.getMessage());
-
-        return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
-    }
-
-    // ──────────────────────────────────────────────
-    // 403 FORBIDDEN — Insufficient Role / Access Denied
-    // ──────────────────────────────────────────────
-
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDenied(
-            AccessDeniedException ex, HttpServletRequest request) {
-
-        log.warn("Access denied: {}", ex.getMessage());
-
-        return buildResponse(HttpStatus.FORBIDDEN,
-                "You do not have permission to access this resource", request);
-    }
-
-    // ──────────────────────────────────────────────
-    // 404 NOT FOUND — Resource Does Not Exist
-    // ──────────────────────────────────────────────
-
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleResourceNotFound(
-            ResourceNotFoundException ex, HttpServletRequest request) {
-
-        log.warn("Resource not found: {}", ex.getMessage());
-
-        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
-    }
-    @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<ErrorResponse> handleUnauthorized(
-            UnauthorizedException ex, HttpServletRequest request) {
-
-        log.warn("Unauthorized: {}", ex.getMessage());
-
-        return buildResponse(
-                HttpStatus.UNAUTHORIZED,
-                ex.getMessage(),
-                request
-        );
-    }
-
-    // ──────────────────────────────────────────────
-    // 400 BAD REQUEST — Bean Validation Errors (@Valid on DTOs)
-    // ──────────────────────────────────────────────
+    /* ---------- 400 Bad Request ---------- */
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationErrors(
+    public ResponseEntity<ErrorResponse> handleValidation(
             MethodArgumentNotValidException ex, HttpServletRequest request) {
-
-        String errors = ex.getBindingResult().getFieldErrors().stream()
-                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
-                .collect(Collectors.joining(" | "));
-
-        log.warn("Validation failed: {}", errors);
-
-        return buildResponse(HttpStatus.BAD_REQUEST, errors, request);
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(Collectors.joining("; "));
+        return build(HttpStatus.BAD_REQUEST, message, request);
     }
 
-    // ──────────────────────────────────────────────
-    // 400 BAD REQUEST — Constraint Violations (path/query params)
-    // ──────────────────────────────────────────────
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableBody(
+            HttpMessageNotReadableException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST,
+                "Malformed request body. Please check the request format.", request);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        String message = "Invalid value '" + ex.getValue() + "' for parameter '"
+                + ex.getName() + "'. Expected type: " + ex.getRequiredType().getSimpleName() + ".";
+        return build(HttpStatus.BAD_REQUEST, message, request);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParam(
+            MissingServletRequestParameterException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST,
+                "Missing required parameter '" + ex.getParameterName() + "'.", request);
+    }
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleConstraintViolation(
             ConstraintViolationException ex, HttpServletRequest request) {
-
-        String errors = ex.getConstraintViolations().stream()
-                .map(cv -> cv.getPropertyPath() + ": " + cv.getMessage())
-                .collect(Collectors.joining(" | "));
-
-        log.warn("Constraint violation: {}", errors);
-
-        return buildResponse(HttpStatus.BAD_REQUEST, errors, request);
+        String message = ex.getConstraintViolations().stream()
+                .map(violation -> violation.getMessage())
+                .collect(Collectors.joining("; "));
+        return build(HttpStatus.BAD_REQUEST, message, request);
     }
 
-    // ──────────────────────────────────────────────
-    // 400 BAD REQUEST — Malformed JSON in Request Body
-    // ──────────────────────────────────────────────
+    /* ---------- 401 Unauthorized ---------- */
 
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleMalformedJson(
-            HttpMessageNotReadableException ex, HttpServletRequest request) {
-
-        log.warn("Malformed request body: {}", ex.getMessage());
-
-        return buildResponse(HttpStatus.BAD_REQUEST,
-                "Invalid request body. Please check your JSON format.", request);
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(
+            InvalidCredentialsException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
     }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorized(
+            UnauthorizedException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthentication(
+            AuthenticationException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, "Authentication required.", request);
+    }
+
+    /* ---------- 403 Forbidden ---------- */
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(
+            AccessDeniedException ex, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN,
+                "You do not have permission to access this resource.", request);
+    }
+
+    /* ---------- 404 Not Found ---------- */
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(
+            ResourceNotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResource(
+            NoResourceFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, "No endpoint found for " + request.getRequestURI() + ".", request);
+    }
+
+    /* ---------- 405 Method Not Allowed ---------- */
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED,
+                "HTTP method " + ex.getMethod() + " is not supported for this endpoint.", request);
+    }
+
+    /* ---------- 409 Conflict ---------- */
+
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleUserAlreadyExists(
+            UserAlreadyExistsException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(DuplicateFoodItemException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicateFoodItem(
+    public ResponseEntity<ErrorResponse> handleDuplicateFood(
             DuplicateFoodItemException ex, HttpServletRequest request) {
-
-        log.warn("Duplicate food item: {}", ex.getMessage());
-
-        return buildResponse(
-                HttpStatus.CONFLICT,
-                ex.getMessage(),
-                request
-        );
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
-    // ──────────────────────────────────────────────
-    // 500 INTERNAL SERVER ERROR — Anything Unhandled
-    // ──────────────────────────────────────────────
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(
+            DataIntegrityViolationException ex, HttpServletRequest request) {
+        log.warn("Data integrity violation on {}: {}",
+                request.getRequestURI(), ex.getMostSpecificCause().getMessage());
+        return build(HttpStatus.CONFLICT,
+                "The resource already exists or violates a uniqueness constraint.", request);
+    }
+
+    /* ---------- 500 Internal Server Error ---------- */
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(
+    public ResponseEntity<ErrorResponse> handleGeneric(
             Exception ex, HttpServletRequest request) {
-
-        log.error("Unexpected error occurred: {}", ex.getMessage(), ex);
-
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+        log.error("Unhandled exception on {} {}",
+                request.getMethod(), request.getRequestURI(), ex);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR,
                 "An unexpected error occurred. Please try again later.", request);
     }
 
-    // ──────────────────────────────────────────────
-    // PRIVATE HELPER — Builds the ErrorResponse
-    // ──────────────────────────────────────────────
-
-    private ResponseEntity<ErrorResponse> buildResponse(
+    private ResponseEntity<ErrorResponse> build(
             HttpStatus status, String message, HttpServletRequest request) {
-
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(status.value())
-                .error(status.getReasonPhrase())
-                .message(message)
-                .path(request.getRequestURI())
-                .build();
-
-        return new ResponseEntity<>(error, status);
+        ErrorResponse body = ErrorResponse.of(
+                status.value(), status.getReasonPhrase(), message, request.getRequestURI());
+        return ResponseEntity.status(status).body(body);
     }
 }

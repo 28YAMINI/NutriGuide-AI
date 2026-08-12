@@ -1,5 +1,6 @@
 package com.nutriguideai.controller;
 
+import com.nutriguideai.config.StandardErrorResponses;
 import com.nutriguideai.dto.request.LoginRequest;
 import com.nutriguideai.dto.request.RegisterRequest;
 import com.nutriguideai.dto.response.LoginResponse;
@@ -38,6 +39,7 @@ public class AuthController {
     // ──────────────────────────────────────────────
 
     @PostMapping("/register")
+    @StandardErrorResponses
     @Operation(
             summary = "Register a new user",
             description = "Creates a new user account with the provided details "
@@ -52,14 +54,6 @@ public class AuthController {
                     content = @Content(
                             schema = @Schema(implementation = RegisterResponse.class)
                     )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Validation failed"
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Email is already registered"
             )
     })
     public ResponseEntity<RegisterResponse> register(
@@ -77,6 +71,7 @@ public class AuthController {
     // ──────────────────────────────────────────────
 
     @PostMapping("/login")
+    @StandardErrorResponses
     @Operation(
             summary = "Sign in",
             description = "Authenticates the user with email and password "
@@ -90,14 +85,6 @@ public class AuthController {
                     content = @Content(
                             schema = @Schema(implementation = LoginResponse.class)
                     )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Validation failed"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Invalid email or password"
             )
     })
     public ResponseEntity<LoginResponse> login(

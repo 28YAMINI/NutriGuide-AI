@@ -1,5 +1,6 @@
 package com.nutriguideai.controller;
 
+import com.nutriguideai.config.StandardErrorResponses;
 import com.nutriguideai.dto.request.UpdateUserRequest;
 import com.nutriguideai.dto.response.UserResponse;
 import com.nutriguideai.service.UserService;
@@ -34,6 +35,7 @@ public class UserController {
     // ──────────────────────────────────────────────
 
     @GetMapping("/me")
+    @StandardErrorResponses
     @Operation(
             summary = "Get my profile",
             description = "Returns the profile of the authenticated user."
@@ -45,14 +47,12 @@ public class UserController {
                     content = @Content(
                             schema = @Schema(implementation = UserResponse.class)
                     )
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Missing or invalid token"
             )
     })
     public ResponseEntity<UserResponse> getCurrentUser() {
+
         log.info("Fetching profile of current user");
+
         return ResponseEntity.ok(userService.getCurrentUser());
     }
 
@@ -61,6 +61,7 @@ public class UserController {
     // ──────────────────────────────────────────────
 
     @PutMapping("/me")
+    @StandardErrorResponses
     @Operation(
             summary = "Update my profile",
             description = "Updates the authenticated user's profile. Email is not changeable "
@@ -73,20 +74,13 @@ public class UserController {
                     content = @Content(
                             schema = @Schema(implementation = UserResponse.class)
                     )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Validation failed"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Missing or invalid token"
             )
     })
     public ResponseEntity<UserResponse> updateProfile(
             @Valid @RequestBody UpdateUserRequest request) {
 
         log.info("Updating profile of current user");
+
         return ResponseEntity.ok(userService.updateProfile(request));
     }
 
@@ -96,6 +90,7 @@ public class UserController {
     // ──────────────────────────────────────────────
 
     @GetMapping("/{id}")
+    @StandardErrorResponses
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
             summary = "Get user by id (Admin only)",
@@ -108,22 +103,13 @@ public class UserController {
                     content = @Content(
                             schema = @Schema(implementation = UserResponse.class)
                     )
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Missing or invalid token"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "USER role is not allowed"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "User not found"
             )
     })
-    public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserResponse> getUserById(
+            @PathVariable Long id) {
+
         log.info("Admin fetching user by id: {}", id);
+
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
@@ -133,6 +119,7 @@ public class UserController {
     // ──────────────────────────────────────────────
 
     @DeleteMapping("/{id}")
+    @StandardErrorResponses
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
             summary = "Delete user (Admin only)",
@@ -142,23 +129,16 @@ public class UserController {
             @ApiResponse(
                     responseCode = "204",
                     description = "User deleted"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Missing or invalid token"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "USER role is not allowed"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "User not found"
             )
     })
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteUser(
+            @PathVariable Long id) {
+
         log.info("Admin deleting user by id: {}", id);
+
         userService.deleteUser(id);
+
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }
+
