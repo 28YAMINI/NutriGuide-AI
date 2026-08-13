@@ -1,18 +1,26 @@
 package com.nutriguideai.controller;
 
-
+import com.nutriguideai.config.StandardErrorResponses;
 import com.nutriguideai.dto.request.CreateFoodItemRequest;
 import com.nutriguideai.dto.request.UpdateFoodItemRequest;
 import com.nutriguideai.dto.response.FoodItemResponse;
 import com.nutriguideai.enums.FoodCategory;
 import com.nutriguideai.service.FoodItemService;
+
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+
 import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,113 +31,259 @@ import java.util.List;
 /**
  * REST controller for the food catalog.
  *
- * <p>GET endpoints are public (anyone can browse foods). POST / PUT / DELETE
- * are ADMIN-only — enforced by URL rules in SecurityConfig AND by
- * {@code @PreAuthorize} here (defense in depth). No business logic lives
- * in this class; it delegates entirely to FoodItemService.</p>
+ * <p>
+ * GET endpoints are public. POST / PUT / DELETE are ADMIN-only.
+ * Authorization is enforced both by SecurityConfig and @PreAuthorize.
+ * Business logic is delegated to FoodItemService.
+ * </p>
  */
 @RestController
 @RequestMapping("/api/foods")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Food Item",
-        description = "Food catalog — reads are public, writes require ADMIN")
+@Tag(
+        name = "Foods",
+        description = "Food catalog. Reads are public; writes require the ADMIN role."
+)
 public class FoodItemController {
 
     private final FoodItemService foodItemService;
 
+    // ──────────────────────────────────────────────
+    // POST /api/foods
+    // ──────────────────────────────────────────────
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Create a food item",
-            description = "Admin only. Rejects duplicate (case-insensitive) names.")
+    @Operation(
+            summary = "Add a food",
+            description = "Creates a new food item. ADMIN role required."
+    )
+    @StandardErrorResponses
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Food item created"),
-            @ApiResponse(responseCode = "400", description = "Validation failed"),
-            @ApiResponse(responseCode = "401", description = "Missing or invalid token"),
-            @ApiResponse(responseCode = "403", description = "Authenticated user is not an admin"),
-            @ApiResponse(responseCode = "409", description = "Food name already exists")
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Food item created",
+                    content = @Content(
+                            schema = @Schema(implementation = FoodItemResponse.class)
+                    )
+            )
     })
     public ResponseEntity<FoodItemResponse> createFoodItem(
             @Valid @RequestBody CreateFoodItemRequest request) {
+
         log.info("Creating food item: {}", request.getName());
-        return ResponseEntity.status(HttpStatus.CREATED)
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
                 .body(foodItemService.createFoodItem(request));
     }
 
+    // ──────────────────────────────────────────────
+    // GET /api/foods
+    // ──────────────────────────────────────────────
+
     @GetMapping
-    @Operation(summary = "Get all food items",
-            description = "Public. Returns the full catalog.")
-    @ApiResponses(@ApiResponse(responseCode = "200", description = "Catalog retrieved"))
+    @Operation(
+            summary = "List all foods",
+            description = "Returns the complete food catalog. Public endpoint."
+    )
+    @StandardErrorResponses
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "All foods",
+                    content = @Content(
+                            array = @ArraySchema(
+                                    schema = @Schema(implementation = FoodItemResponse.class)
+                            )
+                    )
+            )
+    })
     public ResponseEntity<List<FoodItemResponse>> getAllFoodItems() {
+
         log.debug("Fetching all food items");
+
         return ResponseEntity.ok(foodItemService.getAllFoodItems());
     }
 
+    // ──────────────────────────────────────────────
+    // GET /api/foods/{id}
+    // ──────────────────────────────────────────────
+
     @GetMapping("/{id}")
-    @Operation(summary = "Get a food item by id", description = "Public.")
+    @Operation(
+            summary = "Get a food by id",
+            description = "Returns a single food item by its id. Public endpoint."
+    )
+    @Parameter(
+            name = "id",
+            description = "Food id",
+            required = true,
+            example = "1"
+    )
+    @StandardErrorResponses
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Food item found"),
-            @ApiResponse(responseCode = "404", description = "Food item not found")
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "The food",
+                    content = @Content(
+                            schema = @Schema(implementation = FoodItemResponse.class)
+                    )
+            )
     })
-    public ResponseEntity<FoodItemResponse> getFoodItemById(@PathVariable Long id) {
+    public ResponseEntity<FoodItemResponse> getFoodItemById(
+            @PathVariable Long id) {
+
         log.debug("Fetching food item: id={}", id);
-        return ResponseEntity.ok(foodItemService.getFoodItemById(id));
+
+        return ResponseEntity.ok(
+                foodItemService.getFoodItemById(id)
+        );
     }
+
+    // ──────────────────────────────────────────────
+    // PUT /api/foods/{id}
+    // ──────────────────────────────────────────────
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Update a food item",
-            description = "Admin only. Full replacement (PUT) — send the complete item.")
+    @Operation(
+            summary = "Update a food",
+            description = "Updates an existing food item. ADMIN role required."
+    )
+    @Parameter(
+            name = "id",
+            description = "Food id",
+            required = true,
+            example = "1"
+    )
+    @StandardErrorResponses
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Food item updated"),
-            @ApiResponse(responseCode = "400", description = "Validation failed"),
-            @ApiResponse(responseCode = "401", description = "Missing or invalid token"),
-            @ApiResponse(responseCode = "403", description = "Authenticated user is not an admin"),
-            @ApiResponse(responseCode = "404", description = "Food item not found"),
-            @ApiResponse(responseCode = "409", description = "Food name already exists")
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Updated food",
+                    content = @Content(
+                            schema = @Schema(implementation = FoodItemResponse.class)
+                    )
+            )
     })
     public ResponseEntity<FoodItemResponse> updateFoodItem(
             @PathVariable Long id,
             @Valid @RequestBody UpdateFoodItemRequest request) {
+
         log.info("Updating food item: id={}", id);
-        return ResponseEntity.ok(foodItemService.updateFoodItem(id, request));
+
+        return ResponseEntity.ok(
+                foodItemService.updateFoodItem(id, request)
+        );
     }
+
+    // ──────────────────────────────────────────────
+    // DELETE /api/foods/{id}
+    // ──────────────────────────────────────────────
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Delete a food item", description = "Admin only.")
+    @Operation(
+            summary = "Delete a food",
+            description = "Deletes a food item. ADMIN role required."
+    )
+    @Parameter(
+            name = "id",
+            description = "Food id",
+            required = true,
+            example = "1"
+    )
+    @StandardErrorResponses
     @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Food item deleted"),
-            @ApiResponse(responseCode = "401", description = "Missing or invalid token"),
-            @ApiResponse(responseCode = "403", description = "Authenticated user is not an admin"),
-            @ApiResponse(responseCode = "404", description = "Food item not found")
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Deleted"
+            )
     })
-    public ResponseEntity<Void> deleteFoodItem(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteFoodItem(
+            @PathVariable Long id) {
+
         log.info("Deleting food item: id={}", id);
+
         foodItemService.deleteFoodItem(id);
+
         return ResponseEntity.noContent().build();
     }
 
+    // ──────────────────────────────────────────────
+    // GET /api/foods/category/{category}
+    // ──────────────────────────────────────────────
+
     @GetMapping("/category/{category}")
-    @Operation(summary = "Get food items by category",
-            description = "Public. Category must be a valid FoodCategory value.")
+    @Operation(
+            summary = "List foods by category",
+            description = "Returns all food items belonging to the specified category."
+    )
+    @Parameter(
+            name = "category",
+            description = "Food category",
+            required = true,
+            schema = @Schema(implementation = FoodCategory.class),
+            example = "FRUITS"
+    )
+    @StandardErrorResponses
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Food items found"),
-            @ApiResponse(responseCode = "400", description = "Invalid category value")
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Foods in the category",
+                    content = @Content(
+                            array = @ArraySchema(
+                                    schema = @Schema(implementation = FoodItemResponse.class)
+                            )
+                    )
+            )
     })
     public ResponseEntity<List<FoodItemResponse>> getFoodItemsByCategory(
             @PathVariable FoodCategory category) {
+
         log.debug("Fetching food items by category: {}", category);
-        return ResponseEntity.ok(foodItemService.getFoodItemsByCategory(category));
+
+        return ResponseEntity.ok(
+                foodItemService.getFoodItemsByCategory(category)
+        );
     }
 
+    // ──────────────────────────────────────────────
+    // GET /api/foods/search
+    // ──────────────────────────────────────────────
+
     @GetMapping("/search")
-    @Operation(summary = "Search food items by name",
-            description = "Public. Case-insensitive substring search; blank name returns an empty list.")
-    @ApiResponses(@ApiResponse(responseCode = "200", description = "Search results"))
+    @Operation(
+            summary = "Search foods",
+            description = "Searches food items by name. Search is case-insensitive."
+    )
+    @Parameter(
+            name = "name",
+            description = "Search term matched against the food name",
+            required = false,
+            example = "apple"
+    )
+    @StandardErrorResponses
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Matching foods",
+                    content = @Content(
+                            array = @ArraySchema(
+                                    schema = @Schema(implementation = FoodItemResponse.class)
+                            )
+                    )
+            )
+    })
     public ResponseEntity<List<FoodItemResponse>> searchFoodItems(
             @RequestParam(name = "name", required = false) String name) {
+
         log.debug("Searching food items: name={}", name);
-        return ResponseEntity.ok(foodItemService.searchFoodItems(name));
+
+        return ResponseEntity.ok(
+                foodItemService.searchFoodItems(name)
+        );
     }
 }
