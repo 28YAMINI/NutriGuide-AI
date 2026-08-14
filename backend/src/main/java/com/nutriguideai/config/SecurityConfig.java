@@ -59,12 +59,27 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/foods/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/foods/**").hasRole("ADMIN")
 
+                        // Health APIs — all require authentication;
+                        // ownership is enforced in HealthService
+                        .requestMatchers("/api/health/**").authenticated()
+
                         // User APIs
                         .requestMatchers("/api/users/me").authenticated()
                         .requestMatchers("/api/users/*").hasRole("ADMIN")
 
                         // Everything else
                         .anyRequest().authenticated()
+                        // Health APIs — all require authentication;
+                        // ownership is enforced in HealthService
+                        .requestMatchers("/api/health/**").authenticated()
+
+                        // Goals APIs — all require authentication;
+                        // ownership is enforced in GoalServiceImpl
+                        .requestMatchers("/api/goals/**").authenticated()
+
+                        // Food Preferences APIs — all require authentication;
+                        // ownership is enforced in PreferenceServiceImpl
+                        .requestMatchers("/api/preferences/**").authenticated()
                 )
 
                 .addFilterBefore(

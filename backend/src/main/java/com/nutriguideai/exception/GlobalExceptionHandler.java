@@ -130,11 +130,7 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
-    @ExceptionHandler(DuplicateFoodItemException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicateFood(
-            DuplicateFoodItemException ex, HttpServletRequest request) {
-        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
-    }
+
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrity(
@@ -154,6 +150,16 @@ public class GlobalExceptionHandler {
                 request.getMethod(), request.getRequestURI(), ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR,
                 "An unexpected error occurred. Please try again later.", request);
+    }
+    @ExceptionHandler(DuplicateConditionException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateCondition(
+            DuplicateConditionException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+    @ExceptionHandler(DuplicateFoodItemException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateFood(
+            DuplicateFoodItemException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
     private ResponseEntity<ErrorResponse> build(
