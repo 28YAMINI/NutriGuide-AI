@@ -1594,5 +1594,13 @@ Phase 6: Deployment
 | 1.0         | 2026-07-27   | Architect  | Initial draft        |
 
 ---
-
+## Module 6 — AI Nutrition Assistant (backend)
+- [ ] M6.1 Design + API contract (this doc) — DONE
+- [ ] M6.2 AiProvider abstraction, GeminiAiProvider (REST), AiProperties
+- [ ] M6.3 UserHealthContext + AiPromptBuilder (system prompt)
+- [ ] M6.4 AiNutritionService + impl + DTOs + AiController
+- [ ] M6.5 Wire SecurityConfig, GlobalExceptionHandler, application.properties
+- [ ] M6.6 Unit tests: AiPromptBuilderTest, AiNutritionServiceImplTest, GeminiAiProviderTest
+- [ ] M6.7 Postman collection + live verification with real API key
+- [ ] M6.8 (stretch) JSON-mode structured plan / conversation history table
 *End of Document — 07_TASKS.md*

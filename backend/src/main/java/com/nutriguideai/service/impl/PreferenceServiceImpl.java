@@ -81,4 +81,7 @@ public class PreferenceServiceImpl implements PreferenceService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User", "email", authentication.getName()));
     }
+
+
+
 }

@@ -67,12 +67,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/me").authenticated()
                         .requestMatchers("/api/users/*").hasRole("ADMIN")
 
-                        // Everything else
-                        .anyRequest().authenticated()
-                        // Health APIs — all require authentication;
-                        // ownership is enforced in HealthService
-                        .requestMatchers("/api/health/**").authenticated()
-
                         // Goals APIs — all require authentication;
                         // ownership is enforced in GoalServiceImpl
                         .requestMatchers("/api/goals/**").authenticated()
@@ -80,6 +74,11 @@ public class SecurityConfig {
                         // Food Preferences APIs — all require authentication;
                         // ownership is enforced in PreferenceServiceImpl
                         .requestMatchers("/api/preferences/**").authenticated()
+
+                        // AI Nutrition APIs — require authentication; identity comes from the JWT
+                        .requestMatchers("/api/ai/**").authenticated()
+                        // Everything else — MUST stay last, exactly once
+                        .anyRequest().authenticated()
                 )
 
                 .addFilterBefore(

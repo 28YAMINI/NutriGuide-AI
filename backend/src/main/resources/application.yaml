@@ -33,3 +33,6 @@ app:
         tags-sorter: alpha
       api-docs:
         path: /v3/api-docs
+
+    ai:
+

@@ -161,6 +161,12 @@ public class GlobalExceptionHandler {
             DuplicateFoodItemException ex, HttpServletRequest request) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
+    @ExceptionHandler(AiProviderException.class)
+    public ResponseEntity<ErrorResponse> handleAiProviderException(AiProviderException ex) {
+        log.error("AI provider failure", ex);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(new ErrorResponse(HttpStatus.BAD_GATEWAY.value(), "AI_SERVICE_UNAVAILABLE", ex.getMessage()));
+    }
 
     private ResponseEntity<ErrorResponse> build(
             HttpStatus status, String message, HttpServletRequest request) {

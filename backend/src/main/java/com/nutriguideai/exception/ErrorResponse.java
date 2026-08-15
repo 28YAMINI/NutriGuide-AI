@@ -27,6 +27,9 @@ public class ErrorResponse {
     private String message;
     private String path;
 
+    public ErrorResponse(int value, String aiServiceUnavailable, String message) {
+    }
+
     public static ErrorResponse of(int status, String error, String message, String path) {
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
