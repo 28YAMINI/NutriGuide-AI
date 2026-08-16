@@ -2,8 +2,11 @@ package com.nutriguideai.controller;
 
 import com.nutriguideai.config.StandardErrorResponses;
 import com.nutriguideai.dto.request.LoginRequest;
+import com.nutriguideai.dto.request.LogoutRequest;
+import com.nutriguideai.dto.request.RefreshTokenRequest;
 import com.nutriguideai.dto.request.RegisterRequest;
 import com.nutriguideai.dto.response.LoginResponse;
+import com.nutriguideai.dto.response.RefreshTokenResponse;
 import com.nutriguideai.dto.response.RegisterResponse;
 import com.nutriguideai.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,15 +31,13 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @Tag(
         name = "Authentication",
-        description = "Public endpoints for registering and signing in."
+        description = "Public endpoints for registering, signing in, refreshing tokens, and logging out."
 )
 public class AuthController {
 
     private final AuthService authService;
 
-    // ──────────────────────────────────────────────
     // POST /api/auth/register
-    // ──────────────────────────────────────────────
 
     @PostMapping("/register")
     @StandardErrorResponses
@@ -66,16 +67,14 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // ──────────────────────────────────────────────
     // POST /api/auth/login
-    // ──────────────────────────────────────────────
 
     @PostMapping("/login")
     @StandardErrorResponses
     @Operation(
             summary = "Sign in",
             description = "Authenticates the user with email and password "
-                    + "and returns a signed JWT bearer token.",
+                    + "and returns an access token plus a refresh token.",
             security = {}
     )
     @ApiResponses({
@@ -85,6 +84,14 @@ public class AuthController {
                     content = @Content(
                             schema = @Schema(implementation = LoginResponse.class)
                     )
+            ),
+            @ApiResponse(
+                    responseCode = "423",
+                    description = "Account temporarily locked after repeated failed attempts"
+            ),
+            @ApiResponse(
+                    responseCode = "429",
+                    description = "Too many login attempts — rate limited"
             )
     })
     public ResponseEntity<LoginResponse> login(
@@ -95,5 +102,58 @@ public class AuthController {
         LoginResponse response = authService.login(request);
 
         return ResponseEntity.ok(response);
+    }
+
+    // POST /api/auth/refresh
+
+    @PostMapping("/refresh")
+    @StandardErrorResponses
+    @Operation(
+            summary = "Refresh token pair",
+            description = "Exchanges a valid refresh token for a new access token "
+                    + "and a rotated refresh token. The presented refresh token is revoked.",
+            security = {}
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "New token pair",
+                    content = @Content(
+                            schema = @Schema(implementation = RefreshTokenResponse.class)
+                    )
+            )
+    })
+    public ResponseEntity<RefreshTokenResponse> refresh(
+            @Valid @RequestBody RefreshTokenRequest request) {
+
+        log.debug("POST /api/auth/refresh");
+
+        return ResponseEntity.ok(authService.refresh(request));
+    }
+
+    // POST /api/auth/logout
+
+    @PostMapping("/logout")
+    @StandardErrorResponses
+    @Operation(
+            summary = "Log out",
+            description = "Revokes the presented refresh token server-side. "
+                    + "Idempotent: unknown or already-revoked tokens are ignored.",
+            security = {}
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Logged out"
+            )
+    })
+    public ResponseEntity<Void> logout(
+            @Valid @RequestBody LogoutRequest request) {
+
+        log.debug("POST /api/auth/logout");
+
+        authService.logout(request);
+
+        return ResponseEntity.noContent().build();
     }
 }

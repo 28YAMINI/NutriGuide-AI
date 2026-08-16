@@ -32,7 +32,25 @@ export interface LoginRequest {
 export interface LoginResponse {
   readonly token: string
   readonly tokenType: 'Bearer'
+  readonly refreshToken: string
   readonly user: UserResponse
+}
+
+/** Body of POST /api/auth/refresh. */
+export interface RefreshRequest {
+  refreshToken: string
+}
+
+/** Response of POST /api/auth/refresh. */
+export interface RefreshResponse {
+  readonly token: string
+  readonly refreshToken: string
+  readonly tokenType: 'Bearer'
+}
+
+/** Body of POST /api/auth/logout. */
+export interface LogoutRequest {
+  refreshToken: string
 }
 
 /** Response of POST /api/auth/register. */

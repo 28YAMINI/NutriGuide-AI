@@ -2,12 +2,13 @@ package com.nutriguideai.config;
 
 import com.nutriguideai.security.JwtAuthenticationFilter;
 import com.nutriguideai.security.RestAccessDeniedHandler;
-
 import com.nutriguideai.security.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -18,6 +19,13 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -35,6 +43,16 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
 
+                .cors(Customizer.withDefaults())
+
+                .headers(headers -> headers
+                        .contentTypeOptions(Customizer.withDefaults())   // X-Content-Type-Options: nosniff
+                        .frameOptions(frame -> frame.deny())            // X-Frame-Options: DENY
+                        .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER))
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                "default-src 'self'; frame-ancestors 'none'"))
+                )
+
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
@@ -44,7 +62,8 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // Public APIs
+                        // Public APIs (register, login, refresh, logout carry
+                        // their own credential, so they stay permitAll)
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/swagger-ui/**",
@@ -87,6 +106,26 @@ public class SecurityConfig {
                 );
 
         return http.build();
+    }
+
+    /**
+     * CORS allowlist from app.cors.allowed-origins (comma-separated).
+     * Credentials are disabled — the API uses Bearer tokens, not cookies.
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource(
+            @Value("${app.cors.allowed-origins}") String allowedOrigins) {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(
+                Arrays.stream(allowedOrigins.split(",")).map(String::trim).toList());
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(false);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean

@@ -41,7 +41,7 @@ class GeminiAiProviderTest {
 
     @Test
     void generateChat_returnsTextFromFirstCandidate() {
-        server.expect(requestTo("/models/gemini-2.5-flash:generateContent"))
+        server.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withSuccess("""
                         {"candidates":[{"content":{"parts":[{"text":"Eat more vegetables"}]}}]}
@@ -53,7 +53,7 @@ class GeminiAiProviderTest {
 
     @Test
     void generateChat_throwsWhenApiErrorReturned() {
-        server.expect(requestTo("/models/gemini-2.5-flash:generateContent"))
+        server.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"))
                 .andRespond(withSuccess("""
                         {"error":{"code":400,"message":"API key not valid","status":"INVALID_ARGUMENT"}}
                         """, MediaType.APPLICATION_JSON));
@@ -65,7 +65,7 @@ class GeminiAiProviderTest {
 
     @Test
     void generateChat_throwsWhenContentBlocked() {
-        server.expect(requestTo("/models/gemini-2.5-flash:generateContent"))
+        server.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"))
                 .andRespond(withSuccess("{\"candidates\":[]}", MediaType.APPLICATION_JSON));
 
         assertThatThrownBy(() -> provider.generateChat("sys", "user"))
@@ -75,7 +75,7 @@ class GeminiAiProviderTest {
 
     @Test
     void generateChat_throwsOnHttpError() {
-        server.expect(requestTo("/models/gemini-2.5-flash:generateContent"))
+        server.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"))
                 .andRespond(withServerError());
 
         assertThatThrownBy(() -> provider.generateChat("sys", "user"))

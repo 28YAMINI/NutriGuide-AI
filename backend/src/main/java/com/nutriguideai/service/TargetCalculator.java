@@ -2,123 +2,131 @@ package com.nutriguideai.service;
 
 import com.nutriguideai.entity.User;
 import com.nutriguideai.enums.ActivityLevel;
-import com.nutriguideai.enums.Gender;
 import com.nutriguideai.enums.PrimaryGoal;
 
 /**
- * Calculates daily calorie and macro targets from a user's profile,
- * primary goal, and activity level.
+ * Static nutrition math: BMR (Mifflin-St Jeor), TDEE, and the calorie +
+ * macro targets stored on {@link com.nutriguideai.entity.UserGoal}.
  *
- * <p>Pipeline (docs/04_DATABASE.md §4.5, docs/07_TASKS.md TASK-010):
- * Mifflin-St Jeor BMR → TDEE (activity multiplier) → goal adjustment →
- * 30/40/30 macro split, clamped to the documented ranges. Returns
- * {@code null} when the profile is missing any value needed for BMR
- * (age, gender, height, weight).</p>
+ * <p>Returns {@code null} when the profile is incomplete (age, height or
+ * weight missing) so callers keep previously stored targets.</p>
  */
 public final class TargetCalculator {
 
     private TargetCalculator() {
     }
 
-    /** Daily calorie and macro targets for a single user. */
-    public record TargetMacros(int calories, int proteinG, int carbsG, int fatG) {
+    /** Calorie + macro targets stored on UserGoal (integers, grams). */
+    public record TargetMacros(Integer calories, Integer proteinG, Integer carbsG, Integer fatG) {
     }
 
-    /** Mifflin-St Jeor TDEE multipliers by activity level. */
-    private static final double SEDENTARY_MULTIPLIER = 1.2;
-    private static final double LIGHT_MULTIPLIER = 1.375;
-    private static final double MODERATE_MULTIPLIER = 1.55;
-    private static final double ACTIVE_MULTIPLIER = 1.725;
-    private static final double VERY_ACTIVE_MULTIPLIER = 1.9;
+    /** Full targets surfaced in the AI prompt and meal-plan response. */
+    public record Targets(
+            double bmi,
+            double bmr,
+            double tdee,
+            double dailyCalories,
+            double proteinGrams,
+            double carbsGrams,
+            double fatGrams
+    ) {
+    }
 
-    /** Goal calorie adjustments (fraction of TDEE). */
-    private static final double WEIGHT_LOSS_ADJUSTMENT = 0.80;
-    private static final double WEIGHT_GAIN_ADJUSTMENT = 1.20;
-    private static final double MUSCLE_GAIN_ADJUSTMENT = 1.15;
-    private static final double MAINTENANCE_ADJUSTMENT = 1.00;
-    private static final double HEALTHY_LIFESTYLE_ADJUSTMENT = 1.00;
-
-    /** Clamp ranges from docs/04_DATABASE.md §4.5. */
-    private static final int MIN_CALORIES = 800;
-    private static final int MAX_CALORIES = 5000;
-    private static final int MIN_PROTEIN_G = 10;
-    private static final int MAX_PROTEIN_G = 400;
-    private static final int MIN_CARBS_G = 10;
-    private static final int MAX_CARBS_G = 600;
-    private static final int MIN_FAT_G = 5;
-    private static final int MAX_FAT_G = 300;
-
-    /** Macro split: 30% protein, 40% carbs, 30% fat. */
-    private static final double PROTEIN_RATIO = 0.30;
-    private static final double CARBS_RATIO = 0.40;
-    private static final double FAT_RATIO = 0.30;
-    private static final double CALORIES_PER_G_PROTEIN = 4.0;
-    private static final double CALORIES_PER_G_CARBS = 4.0;
-    private static final double CALORIES_PER_G_FAT = 9.0;
-
-    /**
-     * Computes the daily targets for a user.
-     *
-     * @param user          the user (age, gender, height, weight must be set)
-     * @param goal          the primary health goal
-     * @param activityLevel the activity level for the TDEE multiplier
-     * @return the calculated targets, or {@code null} when profile data
-     *         needed for BMR is missing
-     */
-    public static TargetMacros calculate(
-            User user, PrimaryGoal goal, ActivityLevel activityLevel) {
-
-        if (user.getAge() == null || user.getGender() == null
-                || user.getHeight() == null || user.getWeight() == null) {
+    public static TargetMacros calculate(User user, PrimaryGoal primaryGoal, ActivityLevel activityLevel) {
+        if (user == null || primaryGoal == null || activityLevel == null
+                || user.getAge() == null || user.getHeight() == null || user.getWeight() == null) {
             return null;
         }
 
-        double bmr = bmr(user.getWeight(), user.getHeight(), user.getAge(), user.getGender());
-        double tdee = bmr * activityMultiplier(activityLevel);
-        double adjusted = tdee * goalAdjustment(goal);
+        // Mifflin-St Jeor BMR; OTHER/unspecified uses the midpoint of M/F formulas
+        double base = 10 * user.getWeight() + 6.25 * user.getHeight() - 5 * user.getAge();
+        double genderAdjustment = user.getGender() == null ? -78 : switch (user.getGender().name()) {
+            case "MALE" -> 5;
+            case "FEMALE" -> -161;
+            default -> -78;
+        };
+        double bmr = base + genderAdjustment;
 
-        int calories = clamp((int) Math.round(adjusted), MIN_CALORIES, MAX_CALORIES);
-        int proteinG = clamp((int) Math.round(calories * PROTEIN_RATIO / CALORIES_PER_G_PROTEIN),
-                MIN_PROTEIN_G, MAX_PROTEIN_G);
-        int carbsG = clamp((int) Math.round(calories * CARBS_RATIO / CALORIES_PER_G_CARBS),
-                MIN_CARBS_G, MAX_CARBS_G);
-        int fatG = clamp((int) Math.round(calories * FAT_RATIO / CALORIES_PER_G_FAT),
-                MIN_FAT_G, MAX_FAT_G);
+        double tdee = bmr * activityMultiplier(activityLevel);
+        int calories = (int) Math.round(tdee * goalAdjustment(primaryGoal));
+
+        int proteinG = (int) Math.round(calories * proteinPercent(primaryGoal) / 100.0 / 4.0);
+        int carbsG = (int) Math.round(calories * carbsPercent(primaryGoal) / 100.0 / 4.0);
+        int fatG = (int) Math.round(calories * fatPercent(primaryGoal) / 100.0 / 9.0);
 
         return new TargetMacros(calories, proteinG, carbsG, fatG);
     }
 
+    /** Convenience for the AI flow: same inputs, but with BMI/BMR/TDEE too. */
+    public static Targets calculateTargets(User user, PrimaryGoal primaryGoal, ActivityLevel activityLevel) {
+        TargetMacros macros = calculate(user, primaryGoal, activityLevel);
+        if (macros == null) {
+            return null;
+        }
+        double heightM = user.getHeight() / 100.0;
+        double bmi = user.getWeight() / (heightM * heightM);
+
+        double base = 10 * user.getWeight() + 6.25 * user.getHeight() - 5 * user.getAge();
+        double genderAdjustment = user.getGender() == null ? -78 : switch (user.getGender().name()) {
+            case "MALE" -> 5;
+            case "FEMALE" -> -161;
+            default -> -78;
+        };
+        double bmr = base + genderAdjustment;
+        double tdee = bmr * activityMultiplier(activityLevel);
+
+        return new Targets(
+                round1(bmi), round1(bmr), round1(tdee),
+                macros.calories().doubleValue(),
+                macros.proteinG().doubleValue(),
+                macros.carbsG().doubleValue(),
+                macros.fatG().doubleValue());
+    }
+
+    private static double round1(double value) {
+        return Math.round(value * 10.0) / 10.0;
+    }
+
     private static double activityMultiplier(ActivityLevel level) {
-        return switch (level) {
-            case SEDENTARY -> SEDENTARY_MULTIPLIER;
-            case LIGHT -> LIGHT_MULTIPLIER;
-            case MODERATE -> MODERATE_MULTIPLIER;
-            case ACTIVE -> ACTIVE_MULTIPLIER;
-            case VERY_ACTIVE -> VERY_ACTIVE_MULTIPLIER;
+        return switch (level.name()) {
+            case "SEDENTARY" -> 1.2;
+            case "LIGHT", "LIGHTLY_ACTIVE" -> 1.375;
+            case "MODERATE", "MODERATELY_ACTIVE" -> 1.55;
+            case "ACTIVE" -> 1.725;
+            case "VERY_ACTIVE", "EXTRA_ACTIVE" -> 1.9;
+            default -> 1.2;
         };
     }
 
     private static double goalAdjustment(PrimaryGoal goal) {
-        return switch (goal) {
-            case WEIGHT_LOSS -> WEIGHT_LOSS_ADJUSTMENT;
-            case WEIGHT_GAIN -> WEIGHT_GAIN_ADJUSTMENT;
-            case MUSCLE_GAIN -> MUSCLE_GAIN_ADJUSTMENT;
-            case MAINTENANCE -> MAINTENANCE_ADJUSTMENT;
-            case HEALTHY_LIFESTYLE -> HEALTHY_LIFESTYLE_ADJUSTMENT;
+        return switch (goal.name()) {
+            case "WEIGHT_LOSS", "FAT_LOSS" -> 0.8;                              // 20% deficit
+            case "WEIGHT_GAIN", "MUSCLE_GAIN", "BUILD_MUSCLE" -> 1.1;           // 10% surplus
+            default -> 1.0;                                                     // MAINTENANCE / HEALTHY_LIFESTYLE
         };
     }
 
-    /** Mifflin-St Jeor BMR. OTHER is treated as the sex-neutral midpoint. */
-    private static double bmr(double weightKg, double heightCm, int age, Gender gender) {
-        double base = 10.0 * weightKg + 6.25 * heightCm - 5.0 * age;
-        return switch (gender) {
-            case MALE -> base + 5.0;
-            case FEMALE -> base - 161.0;
-            case OTHER -> base - 78.0;
+    private static double proteinPercent(PrimaryGoal goal) {
+        return switch (goal.name()) {
+            case "WEIGHT_LOSS", "FAT_LOSS", "MUSCLE_GAIN", "BUILD_MUSCLE" -> 30.0;
+            default -> 25.0;
         };
     }
 
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
+    private static double carbsPercent(PrimaryGoal goal) {
+        return switch (goal.name()) {
+            case "WEIGHT_LOSS", "FAT_LOSS" -> 40.0;
+            case "MUSCLE_GAIN", "BUILD_MUSCLE" -> 45.0;
+            case "WEIGHT_GAIN" -> 50.0;
+            default -> 45.0;
+        };
+    }
+
+    private static double fatPercent(PrimaryGoal goal) {
+        return switch (goal.name()) {
+            case "WEIGHT_LOSS", "FAT_LOSS" -> 30.0;
+            case "MUSCLE_GAIN", "BUILD_MUSCLE", "WEIGHT_GAIN" -> 25.0;
+            default -> 30.0;
+        };
     }
 }

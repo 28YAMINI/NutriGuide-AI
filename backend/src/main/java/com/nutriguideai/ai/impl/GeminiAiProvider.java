@@ -6,9 +6,11 @@ import com.nutriguideai.ai.GeminiResponse;
 import com.nutriguideai.exception.AiProviderException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Map;
@@ -19,11 +21,14 @@ import java.util.Map;
  */
 @Component
 @RequiredArgsConstructor
+@Primary
 @Slf4j
 public class GeminiAiProvider implements AiProvider {
 
     private final RestClient geminiRestClient;
     private final AiProperties aiProperties;
+
+
 
     @Override
     public String generateChat(String systemPrompt, String userPrompt) {
@@ -67,5 +72,11 @@ public class GeminiAiProvider implements AiProvider {
             throw new AiProviderException("AI provider returned empty content");
         }
         return text.trim();
+    }
+
+
+    @Override
+    public String chat(String prompt) {
+        return generateChat("You are NutriGuide AI, an evidence-informed nutrition assistant.", prompt);
     }
 }

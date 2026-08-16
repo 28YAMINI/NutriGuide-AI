@@ -70,6 +70,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, message, request);
     }
 
+    @ExceptionHandler(IllegalOperationException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalOperation(
+            IllegalOperationException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     /* ---------- 401 Unauthorized ---------- */
 
     @ExceptionHandler(InvalidCredentialsException.class)
@@ -130,7 +136,17 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(DuplicateConditionException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateCondition(
+            DuplicateConditionException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
 
+    @ExceptionHandler(DuplicateFoodItemException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateFood(
+            DuplicateFoodItemException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrity(
@@ -139,6 +155,22 @@ public class GlobalExceptionHandler {
                 request.getRequestURI(), ex.getMostSpecificCause().getMessage());
         return build(HttpStatus.CONFLICT,
                 "The resource already exists or violates a uniqueness constraint.", request);
+    }
+
+    /* ---------- 423 Locked ---------- */
+
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<ErrorResponse> handleAccountLocked(
+            AccountLockedException ex, HttpServletRequest request) {
+        return build(HttpStatus.LOCKED, ex.getMessage(), request);
+    }
+
+    /* ---------- 429 Too Many Requests ---------- */
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimit(
+            RateLimitExceededException ex, HttpServletRequest request) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request);
     }
 
     /* ---------- 500 Internal Server Error ---------- */
@@ -151,16 +183,7 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.INTERNAL_SERVER_ERROR,
                 "An unexpected error occurred. Please try again later.", request);
     }
-    @ExceptionHandler(DuplicateConditionException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicateCondition(
-            DuplicateConditionException ex, HttpServletRequest request) {
-        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
-    }
-    @ExceptionHandler(DuplicateFoodItemException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicateFood(
-            DuplicateFoodItemException ex, HttpServletRequest request) {
-        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
-    }
+
     @ExceptionHandler(AiProviderException.class)
     public ResponseEntity<ErrorResponse> handleAiProviderException(AiProviderException ex) {
         log.error("AI provider failure", ex);

@@ -1,15 +1,6 @@
-server:
-  port: 8081
-
 spring:
   application:
     name: NutirGuideAI
-    spring:
-      jpa:
-        open-in-view: false
-        hibernate:
-          ddl-auto: update
-        show-sql: true
 
   datasource:
     url: jdbc:mysql://localhost:3306/nutriguide_ai
@@ -22,17 +13,44 @@ spring:
       ddl-auto: update
     show-sql: true
 
+  mail:
+    host: localhost
+    port: 25
+
+springdoc:
+  swagger-ui:
+    operations-sorter: method
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+
 app:
+  mail:
+    enabled: false
+    from: nutriguide@localhost
+    log-tokens-in-dev: true
+
   jwt:
-    secret: ThisIsASecretKeyForJwtAuthentication12345678901234567890
+    secret: ${NUTRIGUIDE_JWT_SECRET:ThisIsASecretKeyForJwtAuthentication12345678901234567890}
+    expiration-ms: 900000
+    refresh-expiration-ms: 604800000
+
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:3000
+
+  verification:
     expiration-ms: 86400000
 
-    spring doc:
-      swagger-ui:
-        operations-sorter: method
-        tags-sorter: alpha
-      api-docs:
-        path: /v3/api-docs
+  password-reset:
+    expiration-ms: 1800000
 
-    ai:
+  base-url: http://localhost:8081
+  frontend-url: http://localhost:5173
 
+ai:
+  gemini:
+    base-url: https://generativelanguage.googleapis.com/v1beta
+    model: gemini-2.5-flash
+    api-key: ${NUTRIGUIDE_GEMINI_API_KEY}
+    temperature: 0.4
+    max-output-tokens: 4096

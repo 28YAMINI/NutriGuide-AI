@@ -7,6 +7,10 @@ import com.nutriguideai.dto.response.HealthVitalsResponse;
 
 import java.util.List;
 
+/**
+ * Service contract for health vitals and medical conditions.
+ * Every operation is scoped to the authenticated user (JWT principal).
+ */
 public interface HealthService {
 
     HealthVitalsResponse getMyVitals();

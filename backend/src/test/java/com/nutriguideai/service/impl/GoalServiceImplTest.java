@@ -2,6 +2,7 @@ package com.nutriguideai.service.impl;
 
 import com.nutriguideai.dto.request.GoalRequest;
 import com.nutriguideai.dto.response.GoalResponse;
+import com.nutriguideai.entity.Goal;
 import com.nutriguideai.entity.User;
 import com.nutriguideai.entity.UserGoal;
 import com.nutriguideai.enums.ActivityLevel;
@@ -38,6 +39,13 @@ class GoalServiceImplTest {
     private UserGoalRepository userGoalRepository;
     private UserRepository userRepository;
     private GoalServiceImpl goalService;
+    private Goal.GoalType parseGoalType(String value) {
+        try {
+            return Goal.GoalType.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unknown goalType: " + value);
+        }
+    }
 
     @BeforeEach
     void setUp() {

@@ -3,66 +3,47 @@ package com.nutriguideai.dto.response;
 import com.nutriguideai.entity.FoodPreference;
 import com.nutriguideai.enums.BudgetLevel;
 import com.nutriguideai.enums.DietType;
-import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-@Getter
+@Data
 @Builder
+@NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "Food preferences as returned by the API.")
 public class PreferenceResponse {
 
-    @Schema(
-            description = "User these preferences belong to",
-            example = "1"
-    )
-    private final Long userId;
+    private Long userId;
+    private DietType dietType;
+    private BudgetLevel budgetLevel;
+    private String region;
+    private List<String> allergies;
+    private String excludedFoods;
 
-    @Schema(
-            description = "Dietary preference",
-            example = "VEGETARIAN"
-    )
-    private final DietType dietType;
-
-    @Schema(
-            description = "Budget for meal cost",
-            example = "MEDIUM"
-    )
-    private final BudgetLevel budgetLevel;
-
-    @Schema(
-            description = "Geographic region for local food suggestions",
-            example = "North India",
-            nullable = true
-    )
-    private final String region;
-
-    @Schema(
-            description = "List of allergies",
-            example = "[\"LACTOSE\"]",
-            nullable = true
-    )
-    private final List<String> allergies;
-
-    @Schema(
-            description = "Free-text list of foods to exclude",
-            example = "Mushrooms, Okra",
-            nullable = true
-    )
-    private final String excludedFoods;
-
-    public static PreferenceResponse fromEntity(FoodPreference prefs) {
+    public static PreferenceResponse fromEntity(FoodPreference entity) {
         return PreferenceResponse.builder()
-                .userId(prefs.getUser().getId())
-                .dietType(prefs.getDietType())
-                .budgetLevel(prefs.getBudgetLevel())
-                .region(prefs.getRegion())
-                .allergies(prefs.getAllergies())
-                .excludedFoods(prefs.getExcludedFoods())
+                .userId(entity.getUser().getId())
+                .dietType(entity.getDietType())
+                .budgetLevel(entity.getBudgetLevel())
+                .region(entity.getRegion())
+                .allergies(splitValues(entity.getAllergies()))
+                .excludedFoods(entity.getExcludedFoods())
                 .build();
+    }
+
+    private static List<String> splitValues(String value) {
+        if (value == null || value.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(valuePart -> !valuePart.isEmpty())
+                .toList();
     }
 }

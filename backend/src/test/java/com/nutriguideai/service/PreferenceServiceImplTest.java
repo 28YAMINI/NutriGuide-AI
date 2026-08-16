@@ -123,7 +123,7 @@ class PreferenceServiceImplTest {
 
         ArgumentCaptor<FoodPreference> captor = ArgumentCaptor.forClass(FoodPreference.class);
         verify(foodPreferenceRepository).save(captor.capture());
-        assertEquals(List.of("PEANUTS", "MILK"), captor.getValue().getAllergies());
+        assertEquals("PEANUTS, MILK", captor.getValue().getAllergies());
     }
 
     @Test
