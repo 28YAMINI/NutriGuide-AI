@@ -1,16 +1,25 @@
 package com.nutriguideai.repository;
 
+import com.nutriguideai.entity.MedicalCondition;
+import com.nutriguideai.entity.User;
 import com.nutriguideai.entity.UserMedicalCondition;
-import com.nutriguideai.enums.MedicalCondition;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
-@Repository
-public interface UserMedicalConditionRepository extends JpaRepository<UserMedicalCondition, Long> {
+public interface UserMedicalConditionRepository
+        extends JpaRepository<UserMedicalCondition, Long> {
 
-    List<UserMedicalCondition> findByUserIdOrderByCreatedAtDesc(Long userId);
+    List<UserMedicalCondition> findByUser(User user);
 
-    boolean existsByUserIdAndCondition(Long userId, MedicalCondition condition);
+    Optional<UserMedicalCondition> findByUserAndMedicalCondition(
+            User user,
+            MedicalCondition medicalCondition
+    );
+
+    boolean existsByUserAndMedicalCondition(
+            User user,
+            MedicalCondition medicalCondition
+    );
 }

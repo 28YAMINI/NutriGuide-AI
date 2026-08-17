@@ -1,15 +1,5 @@
 package com.nutriguideai.enums;
 
 public enum FoodCategory {
-    FRUITS,
-    VEGETABLES,
-    GRAINS,
-    DAIRY,
-    MEAT,
-    SEAFOOD,
-    BEVERAGES,
-    SNACKS,
-    NUTS_AND_SEEDS,
-    LEGUMES
-
+    VEGETABLE, FRUIT, GRAIN, PROTEIN, DAIRY, LEGUME, NUTS_SEEDS, SNACK, BEVERAGE, OIL, SPICE, OTHER
 }

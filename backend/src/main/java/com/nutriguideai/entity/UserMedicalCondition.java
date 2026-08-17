@@ -1,25 +1,29 @@
 package com.nutriguideai.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.nutriguideai.enums.MedicalCondition;
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-import java.time.LocalDateTime;
-
-/**
- * A medical condition recorded against a user (1:N — a user can have many).
- */
 @Entity
-@Table(name = "user_medical_conditions", indexes = {
-        @Index(name = "idx_cond_user_id", columnList = "user_id")
-})
 @Getter
 @Setter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
+@Table(name = "user_medical_conditions",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "medical_condition_id"}))
 public class UserMedicalCondition {
 
     @Id
@@ -28,14 +32,9 @@ public class UserMedicalCondition {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    @JsonIgnore
     private User user;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "medical_condtion", nullable = false, length = 40)
-    private MedicalCondition condition;
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "medical_condition_id", nullable = false)
+    private MedicalCondition medicalCondition;
 }

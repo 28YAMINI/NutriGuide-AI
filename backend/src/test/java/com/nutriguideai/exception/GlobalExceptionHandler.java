@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -26,10 +27,20 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @RestControllerAdvice
+
 public class GlobalExceptionHandler {
 
     /* ---------- 400 Bad Request ---------- */
 
+    @ExceptionHandler({FoodNotFoundException.class, MedicalConditionNotFoundException.class})
+    public ResponseEntity<Map<String, String>> handleNotFound(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler({DuplicateFoodException.class, DuplicateMedicalConditionException.class})
+    public ResponseEntity<Map<String, String>> handleConflict(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(
             MethodArgumentNotValidException ex, HttpServletRequest request) {

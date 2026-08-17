@@ -41,10 +41,12 @@ import java.util.List;
 @RequestMapping("/api/foods")
 @RequiredArgsConstructor
 @Slf4j
+
 @Tag(
         name = "Foods",
         description = "Food catalog. Reads are public; writes require the ADMIN role."
 )
+
 public class FoodItemController {
 
     private final FoodItemService foodItemService;
