@@ -107,7 +107,7 @@ export function RegisterPage() {
 
     try {
       await registerUser(payload)
-      navigate(`${routePaths.login}?registered=1`, { replace: true })
+      navigate(routePaths.onboarding, { replace: true })
     } catch (error) {
       setServerError(getErrorMessage(error))
     }

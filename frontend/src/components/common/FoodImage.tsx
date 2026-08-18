@@ -1,53 +1,47 @@
-import { useState } from 'react'
-import { Utensils } from 'lucide-react'
+import { useState } from "react";
+import { getFoodImage, getCategoryImage } from "../../utils/foodImages";
 
 interface FoodImageProps {
-  /** Backend-provided image URL (food.imageUrl). */
-  src?: string | null
-  /** Meaningful description for screen readers. */
-  alt: string
-  /** Wrapper classes — pass the aspect ratio here, e.g. "aspect-square". */
-  className?: string
-  /** Image element classes (object-cover, rounding, etc.). */
-  imgClassName?: string
-  loading?: 'lazy' | 'eager'
+  src?: string;
+  alt: string;
+  category: string;
+  className?: string;
 }
 
 /**
- * Food image with graceful degradation.
+ * Food image with inline SVG fallbacks.
  *
- * Lazy-loads the backend imageUrl inside a fixed-aspect container and
- * falls back to a branded placeholder when the URL is missing or fails
- * to load — so a broken image can never break the card layout.
+ * Tries remote URL first, then falls back to a per-food inline SVG,
+ * then a category-level SVG. Everything is self-contained — no
+ * external image files needed.
  */
-export function FoodImage({
-  src,
-  alt,
-  className = '',
-  imgClassName = '',
-  loading = 'lazy',
-}: FoodImageProps) {
-  const [failed, setFailed] = useState(false)
-  const hasImage = Boolean(src) && !failed
+export function FoodImage({ src, alt, category, className }: FoodImageProps) {
+  const categoryFallback = getCategoryImage(category);
+  const foodFallback = getFoodImage(alt) ?? categoryFallback;
+  const initial = src && src.trim() !== "" ? src : foodFallback;
+
+  const [displaySrc, setDisplaySrc] = useState(initial);
+  const [prevInitial, setPrevInitial] = useState(initial);
+
+  if (prevInitial !== initial) {
+    setPrevInitial(initial);
+    setDisplaySrc(initial);
+  }
 
   return (
-    <div
-      className={`relative aspect-[4/3] overflow-hidden rounded-lg bg-muted ${className}`.trim()}
-    >
-      {hasImage && src ? (
-        <img
-          key={src}
-          src={src}
+      <img
+          src={displaySrc}
           alt={alt}
-          loading={loading}
-          onError={() => setFailed(true)}
-          className={`h-full w-full object-cover ${imgClassName}`.trim()}
-        />
-      ) : (
-        <span className="absolute inset-0 flex items-center justify-center text-muted-foreground/60">
-          <Utensils aria-hidden="true" className="h-8 w-8" />
-        </span>
-      )}
-    </div>
-  )
+          loading="lazy"
+          decoding="async"
+          onError={() => {
+            if (displaySrc === initial && displaySrc !== foodFallback) {
+              setDisplaySrc(foodFallback);
+            } else if (displaySrc !== categoryFallback) {
+              setDisplaySrc(categoryFallback);
+            }
+          }}
+          className={className ?? ""}
+      />
+  );
 }

@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 
 import {
+  Calendar,
+  BookOpen,
+  BarChart3,
   Leaf as LeafIcon,
   Menu as MenuIcon,
   Moon as MoonIcon,
@@ -20,6 +23,12 @@ const NAV_LINKS = [
   { to: routePaths.contact, label: 'Contact' },
 ] as const
 
+const PROTECTED_LINKS = [
+  { to: routePaths.dashboard, label: 'Dashboard', icon: null },
+  { to: routePaths.mealPlan, label: 'Meal Plan', icon: Calendar },
+  { to: routePaths.foodDiary, label: 'Food Diary', icon: BookOpen },
+  { to: routePaths.progress, label: 'Progress', icon: BarChart3 },
+] as const
 const BASE_NAV_CLASS =
   'cursor-pointer rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
@@ -88,10 +97,16 @@ export function Navbar() {
         {/* Desktop nav links */}
         <div className="hidden items-center gap-1 md:flex">
           {NAV_LINKS.map((link) => (
-            <NavLink key={link.to} to={link.to} className={desktopNavClass}>
-              {link.label}
-            </NavLink>
+              <NavLink key={link.to} to={link.to} className={desktopNavClass}>
+                {link.label}
+              </NavLink>
           ))}
+          {isAuthenticated &&
+              PROTECTED_LINKS.map((link) => (
+                  <NavLink key={link.to} to={link.to} className={desktopNavClass}>
+                    {link.label}
+                  </NavLink>
+              ))}
         </div>
 
         {/* Right-side actions */}
@@ -113,18 +128,15 @@ export function Navbar() {
           {/* Desktop auth actions */}
           <div className="hidden items-center gap-1.5 md:flex">
             {isAuthenticated ? (
-              <>
-                {isAdmin && (
-                  <NavLink to={routePaths.admin} className={desktopNavClass}>
-                    Admin
-                  </NavLink>
-                )}
+                    <>
+                    {isAdmin && (
+                        <NavLink to={routePaths.admin} className={desktopNavClass}>
+                          Admin
+                        </NavLink>
+                    )}
 
-                <NavLink to={routePaths.dashboard} className={desktopNavClass}>
-                  Dashboard
-                </NavLink>
+                    <Link
 
-                <Link
                   to={routePaths.dashboard}
                   title={`Signed in as ${user?.firstName} ${user?.lastName}`}
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -185,31 +197,42 @@ export function Navbar() {
             className="mx-auto max-w-7xl space-y-1 px-4 py-3 sm:px-6 lg:px-8"
           >
             {NAV_LINKS.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                className={({ isActive }) =>
-                  `${mobileNavClass} ${
-                    isActive ? 'bg-muted text-foreground' : ''
-                  }`
-                }
-              >
-                {link.label}
-              </NavLink>
+                <NavLink
+                    key={link.to}
+                    to={link.to}
+                    className={({ isActive }) =>
+                        `${mobileNavClass} ${
+                            isActive ? 'bg-muted text-foreground' : ''
+                        }`
+                    }
+                >
+                  {link.label}
+                </NavLink>
             ))}
 
+            {isAuthenticated &&
+                PROTECTED_LINKS.map((link) => (
+                    <NavLink
+                        key={link.to}
+                        to={link.to}
+                        className={({ isActive }) =>
+                            `${mobileNavClass} ${
+                                isActive ? 'bg-muted text-foreground' : ''
+                            }`
+                        }
+                    >
+                  <span className="flex items-center gap-2">
+                    {link.icon && <link.icon aria-hidden="true" className="h-4 w-4" />}
+                    {link.label}
+                  </span>
+                    </NavLink>
+                ))}
+
             {isAuthenticated && isAdmin && (
-              <NavLink to={routePaths.admin} className={mobileNavClass}>
-                Admin
-              </NavLink>
+                <NavLink to={routePaths.admin} className={mobileNavClass}>
+                  Admin
+                </NavLink>
             )}
-
-            {isAuthenticated && (
-              <NavLink to={routePaths.dashboard} className={mobileNavClass}>
-                Dashboard
-              </NavLink>
-            )}
-
             <div className="flex flex-col gap-2 border-t border-border pt-3">
               {isAuthenticated ? (
                 <button
