@@ -4,16 +4,16 @@ import axios from 'axios'
 
 import { ChevronLeft, Leaf, Utensils } from 'lucide-react'
 
-import type { FoodItem } from '../../../../../../../types/food'
-import { CATEGORY_LABELS } from '../../../../../../../constants/food'
-import { foodService } from '../../../../../../../services/foodService'
+import type { FoodItem } from '../../types/food.ts'
+import { CATEGORY_LABELS } from '../../constants/food.ts'
+import { foodService } from '../../services/foodService.ts'
 import {
   foodDetailsPath,
   routePaths,
-} from '../../../../../../../routes/routePaths'
-import { FoodImage } from '../../../../../../../components/common/FoodImage'
-import { PageState } from '../../../../../../../components/ui/PageState'
-import { buttonClassName } from '../../../../../../../components/ui/Button'
+} from '../../routes/routePaths.ts'
+import { FoodImage } from '../../components/common/FoodImage.tsx'
+import { PageState } from '../../components/ui/PageState.tsx'
+import { buttonClassName } from '../../components/ui/Button.tsx'
 
 function NutritionTile({
   label,
@@ -123,7 +123,7 @@ export function FoodDetailsPage() {
       .then((result) => {
         if (!cancelled) {
           setRelated(
-            result.filter((item) => item.foodId !== food.foodId).slice(0, 4),
+            result.filter((item) => item.id !== food.id).slice(0, 4),
           )
         }
       })
@@ -160,6 +160,7 @@ export function FoodDetailsPage() {
     )
   }
 
+  // @ts-ignore
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <Link
@@ -173,11 +174,10 @@ export function FoodDetailsPage() {
       <div className="mt-6 grid gap-8 lg:grid-cols-2 lg:items-start">
         {/* Image */}
         <FoodImage
-          src={food.imageUrl}
-          alt={food.name}
-          loading="eager"
-          className="aspect-[4/3] rounded-2xl shadow-sm"
-        />
+            src={food.imageUrl}
+            alt={food.name}
+            loading="eager"
+            className="aspect-[4/3] rounded-2xl shadow-sm" category={"VEGETABLE"}        />
 
         {/* Details */}
         <div>
@@ -240,15 +240,14 @@ export function FoodDetailsPage() {
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {related.map((item) => (
               <Link
-                key={item.foodId}
-                to={foodDetailsPath(item.foodId)}
+                key={item.id}
+                to={foodDetailsPath(item.id)}
                 className="group overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <FoodImage
-                  src={item.imageUrl}
-                  alt={item.name}
-                  className="aspect-[4/3] rounded-none"
-                />
+                    src={item.imageUrl}
+                    alt={item.name}
+                    className="aspect-[4/3] rounded-none" category={item.category}                />
                 <div className="p-3.5">
                   <h3 className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
                     {item.name}

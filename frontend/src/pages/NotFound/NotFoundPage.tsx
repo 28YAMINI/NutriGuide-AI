@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
 
 import { Compass, Home, Utensils } from 'lucide-react'
-import { buttonClassName } from '../../../../../../../../../../../../components/ui/Button'
-import { routePaths } from '../../../../../../../../../../../../routes/routePaths'
+import { buttonClassName } from '../../components/ui/Button.tsx'
+import { routePaths } from '../../routes/routePaths.ts'
 
 
 /**

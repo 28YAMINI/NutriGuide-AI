@@ -10,8 +10,8 @@ import {
   User,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { routePaths } from '../../../../../../../../../routes/routePaths'
-import { buttonClassName } from '../../../../../../../../../components/ui/Button'
+import { routePaths } from '../../routes/routePaths.ts'
+import { buttonClassName } from '../../components/ui/Button.tsx'
 
 
 interface Stat {

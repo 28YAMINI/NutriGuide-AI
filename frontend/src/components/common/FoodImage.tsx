@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { getFoodImage, getCategoryImage } from "../../utils/foodImages";
+import type {FoodCategory} from "../../types/food.ts";
 
 interface FoodImageProps {
-  src?: string;
-  alt: string;
-  category: string;
-  className?: string;
+    src?: string | null
+    alt: string
+    category: FoodCategory
+    className?: string
+    loading?: 'lazy' | 'eager'
 }
 
 /**
@@ -15,7 +17,12 @@ interface FoodImageProps {
  * then a category-level SVG. Everything is self-contained — no
  * external image files needed.
  */
-export function FoodImage({ src, alt, category, className }: FoodImageProps) {
+export function FoodImage({
+                              src,
+                              alt,
+                              category,
+                              className = "",
+                              loading = "lazy", }: FoodImageProps) {
   const categoryFallback = getCategoryImage(category);
   const foodFallback = getFoodImage(alt) ?? categoryFallback;
   const initial = src && src.trim() !== "" ? src : foodFallback;
@@ -32,7 +39,7 @@ export function FoodImage({ src, alt, category, className }: FoodImageProps) {
       <img
           src={displaySrc}
           alt={alt}
-          loading="lazy"
+          loading={loading}
           decoding="async"
           onError={() => {
             if (displaySrc === initial && displaySrc !== foodFallback) {
@@ -42,6 +49,8 @@ export function FoodImage({ src, alt, category, className }: FoodImageProps) {
             }
           }}
           className={className ?? ""}
+
       />
+
   );
 }

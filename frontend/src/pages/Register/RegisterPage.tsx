@@ -5,13 +5,13 @@ import axios from 'axios'
 
 import { Eye, EyeOff, Leaf } from 'lucide-react'
 
-import type { ActivityLevel, Gender, Goal } from '../../../../types/user'
-import { useAuth } from '../../../../hooks/useAuth'
-import type { RegisterRequest } from '../../../../types/auth'
-import { routePaths } from '../../../../routes/routePaths'
-import { Field, INPUT_CLASSES } from '../../../../components/ui/Field'
-import { Button } from '../../../../components/ui/Button'
-import { Alert } from '../../../../components/ui/Alert'
+import type { ActivityLevel, Gender, Goal } from '../../types/user.ts'
+import { useAuth } from '../../hooks/useAuth.ts'
+import type { RegisterRequest } from '../../types/auth.ts'
+import { routePaths } from '../../routes/routePaths.ts'
+import { Field, INPUT_CLASSES } from '../../components/ui/Field.tsx'
+import { Button } from '../../components/ui/Button.tsx'
+import { Alert } from '../../components/ui/Alert.tsx'
 
 interface RegisterFormValues {
   firstName: string

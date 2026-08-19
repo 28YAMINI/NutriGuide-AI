@@ -5,12 +5,12 @@ import axios from 'axios'
 
 import { Eye, EyeOff, Leaf } from 'lucide-react'
 
-import { useAuth } from '../../../hooks/useAuth'
-import { routePaths } from '../../../routes/routePaths'
-import type { LoginRequest } from '../../../types/auth'
-import { Field, INPUT_CLASSES } from '../../../components/ui/Field'
-import { Button } from '../../../components/ui/Button'
-import { Alert } from '../../../components/ui/Alert'
+import { useAuth } from '../../hooks/useAuth.ts'
+import { routePaths } from '../../routes/routePaths.ts'
+import type { LoginRequest } from '../../types/auth.ts'
+import { Field, INPUT_CLASSES } from '../../components/ui/Field.tsx'
+import { Button } from '../../components/ui/Button.tsx'
+import { Alert } from '../../components/ui/Alert.tsx'
 
 interface LoginFormValues {
   email: string

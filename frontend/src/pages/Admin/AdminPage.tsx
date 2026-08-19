@@ -2,16 +2,16 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 
 import { Leaf, Pencil, Plus, Trash2, Utensils } from 'lucide-react'
-import type { CreateFoodRequest, FoodCategory, FoodItem } from '../../../../../../../../../../../types/food'
-import { foodService } from '../../../../../../../../../../../services/foodService'
+import type { CreateFoodRequest, FoodCategory, FoodItem } from '../../types/food.ts'
+import { foodService } from '../../services/foodService.ts'
 import { useForm } from 'react-hook-form'
-import { Button } from '../../../../../../../../../../../components/ui/Button'
-import { PageState } from '../../../../../../../../../../../components/ui/PageState'
-import { Alert } from '../../../../../../../../../../../components/ui/Alert'
-import { FoodImage } from '../../../../../../../../../../../components/common/FoodImage'
-import { CATEGORY_LABELS, FOOD_CATEGORIES } from '../../../../../../../../../../../constants/food'
-import { Modal } from '../../../../../../../../../../../components/ui/Modal'
-import { Field, INPUT_CLASSES } from '../../../../../../../../../../../components/ui/Field'
+import { Button } from '../../components/ui/Button.tsx'
+import { PageState } from '../../components/ui/PageState.tsx'
+import { Alert } from '../../components/ui/Alert.tsx'
+import { FoodImage } from '../../components/common/FoodImage.tsx'
+import { CATEGORY_LABELS, FOOD_CATEGORIES } from '../../constants/food.ts'
+import { Modal } from '../../components/ui/Modal.tsx'
+import { Field, INPUT_CLASSES } from '../../components/ui/Field.tsx'
 
 interface FoodFormValues {
   name: string
@@ -149,7 +149,7 @@ export function AdminPage() {
       const payload = toPayload(values)
 
       if (editingFood) {
-        await foodService.updateFood(editingFood.foodId, payload)
+        await foodService.updateFood(editingFood.id, payload)
         setNotice({ tone: 'success', text: 'Food updated successfully.' })
       } else {
         await foodService.createFood(payload)
@@ -171,7 +171,7 @@ export function AdminPage() {
     setNotice(null)
 
     try {
-      await foodService.deleteFood(deleteTarget.foodId)
+      await foodService.deleteFood(deleteTarget.id)
       setNotice({ tone: 'success', text: 'Food deleted.' })
       setDeleteTarget(null)
       setReloadKey((key) => key + 1)
@@ -281,14 +281,13 @@ export function AdminPage() {
           </thead>
           <tbody className="divide-y divide-border">
             {foods.map((food) => (
-              <tr key={food.foodId} className="transition-colors hover:bg-muted/40">
+              <tr key={food.id} className="transition-colors hover:bg-muted/40">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <FoodImage
-                      src={food.imageUrl}
-                      alt={food.name}
-                      className="h-10 w-12 shrink-0 rounded-md"
-                    />
+                        src={food.imageUrl}
+                        alt={food.name}
+                        className="h-10 w-12 shrink-0 rounded-md" category={food.category}                    />
                     <div className="min-w-0">
                       <p className="truncate font-medium text-foreground">
                         {food.name}

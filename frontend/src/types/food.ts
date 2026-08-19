@@ -3,47 +3,36 @@
 /**
  * Food category values — must match the backend FoodCategory enum.
  */
-export type FoodCategory =
-  | 'FRUITS'
-  | 'VEGETABLES'
-  | 'GRAINS'
-  | 'DAIRY'
-  | 'MEAT'
-  | 'SEAFOOD'
-  | 'LEGUMES'
-  | 'NUTS_AND_SEEDS'
-  | 'BEVERAGES'
-  | 'SNACKS'
 
-/**
- * A food item as returned by the backend (FoodItemResponse DTO).
- * All macro fields are per serving.
- */
+export type FoodCategory =
+    | 'VEGETABLE'
+    | 'FRUIT'
+    | 'GRAIN'
+    | 'PROTEIN'
+    | 'DAIRY'
+    | 'LEGUME'
+    | 'NUTS_SEEDS'
+    | 'SNACK'
+    | 'BEVERAGE'
+    | 'OIL'
+    | 'SPICE'
+    | 'MEAT'
+    | 'OTHER'
+
 export interface FoodItem {
-  foodId: number
   id: number
   name: string
   description: string
   category: FoodCategory
-  /** Energy per serving, in kilocalories. */
   calories: number
-  /** Grams per serving. */
   protein: number
-  /** Grams per serving. */
   carbohydrates: number
-  /** Grams per serving. */
   fat: number
-  /** Grams per serving. */
   fiber: number
-  /** Human-readable serving size, e.g. "100 g" or "1 cup". */
   servingSize: string
-  /** Null when the admin did not provide an image. */
   imageUrl: string | null
   vegetarian: boolean
-  createdAt: string
-  updatedAt: string
 }
-
 /**
  * Payload for POST /api/foods — matches CreateFoodItemRequest.
  * Used by the Admin page (Step 21).

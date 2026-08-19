@@ -1,29 +1,87 @@
-import type { FoodCategory } from '../types/food'
-
 /**
- * Human-readable labels for every food category.
+ * Food catalog constants.
  *
- * Keyed by the exact enum values the Spring Boot backend returns, so
- * the frontend never hardcodes a category string.
+ * These values must match the backend FoodCategory enum exactly.
  */
+export const FOOD_CATEGORIES = [
+  'VEGETABLE',
+  'FRUIT',
+  'GRAIN',
+  'PROTEIN',
+  'DAIRY',
+  'LEGUME',
+  'NUTS_SEEDS',
+  'SNACK',
+  'BEVERAGE',
+  'OIL',
+  'SPICE',
+  'MEAT',
+  'OTHER',
+] as const
+
+export type FoodCategory = (typeof FOOD_CATEGORIES)[number]
+
 export const CATEGORY_LABELS: Record<FoodCategory, string> = {
-  FRUITS: 'Fruits',
-  VEGETABLES: 'Vegetables',
-  GRAINS: 'Grains',
+  VEGETABLE: 'Vegetables',
+  FRUIT: 'Fruits',
+  GRAIN: 'Grains',
+  PROTEIN: 'Protein',
   DAIRY: 'Dairy',
+  LEGUME: 'Legumes',
+  NUTS_SEEDS: 'Nuts & Seeds',
+  SNACK: 'Snacks',
+  BEVERAGE: 'Beverages',
+  OIL: 'Oils',
+  SPICE: 'Spices',
   MEAT: 'Meat',
-  SEAFOOD: 'Seafood',
-  LEGUMES: 'Legumes',
-  NUTS_AND_SEEDS: 'Nuts & Seeds',
-  BEVERAGES: 'Beverages',
-  SNACKS: 'Snacks',
+  OTHER: 'Other',
+}
+
+export const CATEGORY_EMOJI: Record<FoodCategory, string> = {
+  VEGETABLE: '🥦',
+  FRUIT: '🍎',
+  GRAIN: '🌾',
+  PROTEIN: '🍗',
+  DAIRY: '🥛',
+  LEGUME: '🫘',
+  NUTS_SEEDS: '🥜',
+  SNACK: '🍫',
+  BEVERAGE: '🍵',
+  OIL: '🫒',
+  SPICE: '🌿',
+  MEAT: '🥩',
+  OTHER: '🥗',
 }
 
 /**
- * All category keys in display order.
+ * Local fallback artwork.
  *
- * Derived from CATEGORY_LABELS so there is one source of truth —
- * add a category once and labels, filter chips and any category list
- * all update together.
+ * Real food JPGs are handled by foodImages.ts.
+ * These are only used when a food-specific image is unavailable.
  */
-export const FOOD_CATEGORIES = Object.keys(CATEGORY_LABELS) as FoodCategory[]
+export const CATEGORY_FALLBACK_IMAGE: Record<FoodCategory, string> = {
+  VEGETABLE: '/images/foods/spinach.jpg',
+  FRUIT: '/images/foods/curd.jpg',
+  GRAIN: '/images/foods/oats.jpg',
+  PROTEIN: '/images/foods/chicken.jpg',
+  DAIRY: '/images/foods/milk.jpg',
+  LEGUME: '/images/foods/lentils.jpg',
+  NUTS_SEEDS: '/images/foods/almonds.jpg',
+  SNACK: '/images/foods/peanuts.jpg',
+  BEVERAGE: '/images/foods/green-tea.jpg',
+  OIL: '/images/foods/coconut-oil.jpg',
+  SPICE: '/images/foods/turmeric.jpg',
+  MEAT: '/images/foods/chicken.jpg',
+  OTHER: '/images/foods/curd.jpg',
+}
+
+export const GENERIC_FALLBACK_IMAGE = '/images/foods/curd.jpg'
+
+export const SORT_OPTIONS = [
+  { value: 'name', label: 'Name (A–Z)' },
+  { value: 'calories', label: 'Calories (low to high)' },
+  { value: 'protein', label: 'Protein (high to low)' },
+  { value: 'fat', label: 'Fat (low to high)' },
+] as const
+
+export type FoodSort = (typeof SORT_OPTIONS)[number]['value']

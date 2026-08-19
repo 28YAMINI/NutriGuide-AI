@@ -17,15 +17,15 @@ import type {
   Goal,
   UpdateUserRequest,
   UserResponse,
-} from '../../../../../../../../types/user'
-import { useAuth } from '../../../../../../../../hooks/useAuth'
-import { userService } from '../../../../../../../../services/userService'
-import { routePaths } from '../../../../../../../../routes/routePaths'
-import { Field, INPUT_CLASSES } from '../../../../../../../../components/ui/Field'
-import { Button } from '../../../../../../../../components/ui/Button'
-import { Alert } from '../../../../../../../../components/ui/Alert'
-import { Card } from '../../../../../../../../components/ui/Card'
-import { PageState } from '../../../../../../../../components/ui/PageState'
+} from '../../types/user.ts'
+import { useAuth } from '../../hooks/useAuth.ts'
+import { userService } from '../../services/userService.ts'
+import { routePaths } from '../../routes/routePaths.ts'
+import { Field, INPUT_CLASSES } from '../../components/ui/Field.tsx'
+import { Button } from '../../components/ui/Button.tsx'
+import { Alert } from '../../components/ui/Alert.tsx'
+import { Card } from '../../components/ui/Card.tsx'
+import { PageState } from '../../components/ui/PageState.tsx'
 
 interface ProfileFormValues {
   firstName: string
