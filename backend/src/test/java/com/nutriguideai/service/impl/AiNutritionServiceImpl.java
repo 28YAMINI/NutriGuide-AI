@@ -24,6 +24,13 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+/**
+ * AI meal-plan generation.
+ *
+ * <p>Identity always comes from the JWT principal, never from client input.
+ * The plan is built from the user's profile, stored goal and food preferences,
+ * with calorie and macro targets computed server-side by {@link TargetCalculator}.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -36,27 +43,21 @@ public class AiNutritionServiceImpl implements AiNutritionService {
 
     @Override
     public AiChatResponse chat(AiChatRequest request) {
-        String prompt = request.getMessage();
-
-        String reply = aiProvider.chat(prompt);
-
-        return AiChatResponse.builder()
-                .reply(reply)
-                .build();
+        return null;
     }
 
     @Override
     public MealPlanResponse generateMealPlan(MealPlanRequest request) {
         User user = currentUser();
 
+        FoodPreference preference = foodPreferenceRepository
+                .findByUserId(user.getId())
+                .orElse(null);
+
         UserGoal goal = userGoalRepository
                 .findByUserId(user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "UserGoal", "userId", user.getId()));
-
-        FoodPreference preference = foodPreferenceRepository
-                .findByUserId(user.getId())
-                .orElse(null);
 
         Targets targets = TargetCalculator.calculateTargets(
                 user,
@@ -74,13 +75,11 @@ public class AiNutritionServiceImpl implements AiNutritionService {
                 ? "DAILY"
                 : request.getFocus().name();
 
-        String dietType = preference == null
-                || preference.getDietType() == null
+        String dietType = preference == null || preference.getDietType() == null
                 ? "Not specified"
                 : preference.getDietType().name();
 
-        String budgetLevel = preference == null
-                || preference.getBudgetLevel() == null
+        String budgetLevel = preference == null || preference.getBudgetLevel() == null
                 ? "Not specified"
                 : preference.getBudgetLevel().name();
 
@@ -104,17 +103,16 @@ public class AiNutritionServiceImpl implements AiNutritionService {
 
         String systemPrompt = """
                 You are NutriGuide AI, an evidence-informed nutrition assistant.
-
                 Create practical, realistic and budget-aware meal plans using locally
                 available ingredients.
 
-                This is educational guidance, not medical advice.
+                This is educational nutrition guidance, not medical advice.
 
-                Respect the user's dietary restrictions, allergies and excluded foods.
+                Follow the user's dietary restrictions, allergies and excluded foods strictly.
                 Never recommend an ingredient listed as an allergy or excluded food.
 
                 Provide clear meal names, ingredients, serving sizes and estimated
-                calories and macronutrients.
+                calories and macros for each meal.
 
                 Keep the total daily intake as close as practical to the supplied
                 calorie and macro targets.
@@ -180,10 +178,7 @@ public class AiNutritionServiceImpl implements AiNutritionService {
                 request.getMealsPerDay()
         );
 
-        String reply = aiProvider.generateChat(
-                systemPrompt,
-                userPrompt
-        );
+        String reply = aiProvider.generateChat(systemPrompt, userPrompt);
 
         log.info(
                 "Meal plan generated for {} with focus {} and {} meals/day",
@@ -199,6 +194,7 @@ public class AiNutritionServiceImpl implements AiNutritionService {
                 .build();
     }
 
+    /** Identity ALWAYS comes from the JWT principal, never from client input. */
     private User currentUser() {
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();

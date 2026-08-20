@@ -1,8 +1,9 @@
 import axios from 'axios'
+import { getToken, clearTokens } from '../utils/token'
 
 /**
- * Custom event dispatched when a 401 response survives the refresh
- * attempt. AuthContext listens for this to clear user state.
+ * Custom event dispatched when an authenticated request receives
+ * a final 401 response.
  */
 export const AUTH_UNAUTHORIZED_EVENT = 'nutriguide:unauthorized'
 
@@ -10,8 +11,8 @@ export const AUTH_UNAUTHORIZED_EVENT = 'nutriguide:unauthorized'
  * Axios instance configured for the NutriGuide AI backend.
  *
  * - Base URL: /api (proxied by Vite in dev, nginx in prod)
- * - Request interceptor: attaches JWT from localStorage
- * - Response interceptor: handles 401/403/500 errors
+ * - Request interceptor: attaches JWT from token.ts
+ * - Response interceptor: handles authentication and server errors
  */
 const api = axios.create({
     baseURL: '/api',
@@ -21,28 +22,27 @@ const api = axios.create({
 })
 
 // ─── Request Interceptor ─────────────────────────────────────────────────────
-// Attaches JWT token to every request automatically.
+
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('accessToken')
+        const token = getToken()
+
         if (token) {
             config.headers.Authorization = `Bearer ${token}`
         }
+
         return config
     },
-    (error) => {
-        return Promise.reject(error)
-    },
+    (error) => Promise.reject(error),
 )
 
 // ─── Response Interceptor ────────────────────────────────────────────────────
-// Handles authentication errors and other common error responses.
+
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         const { response } = error
 
-        // No response (network error)
         if (!response) {
             console.error('[API] Network error — no response received')
             return Promise.reject(error)
@@ -52,35 +52,36 @@ api.interceptors.response.use(
 
         switch (status) {
             case 401: {
-                // Token expired or invalid — clear auth and redirect to login
-                console.warn('[API] 401 Unauthorized — clearing token and redirecting to login')
-                localStorage.removeItem('accessToken')
-                localStorage.removeItem('refreshToken')
+                console.warn(
+                    '[API] 401 Unauthorized — clearing authentication state'
+                )
 
-                // Dispatch custom event so AuthContext can clear user state
-                window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT))
+                clearTokens()
 
-                // Only redirect if not already on login page
+                window.dispatchEvent(
+                    new CustomEvent(AUTH_UNAUTHORIZED_EVENT)
+                )
+
                 if (!window.location.pathname.startsWith('/login')) {
                     window.location.href = '/login'
                 }
+
                 break
             }
 
             case 403: {
-                // Forbidden — user doesn't have permission
-                console.warn('[API] 403 Forbidden — insufficient permissions')
+                console.warn(
+                    '[API] 403 Forbidden — insufficient permissions'
+                )
                 break
             }
 
             case 500: {
-                // Server error
                 console.error('[API] 500 Internal Server Error')
                 break
             }
 
             default:
-                // Other errors (400, 404, 409, etc.) — let the calling code handle them
                 break
         }
 
@@ -89,10 +90,9 @@ api.interceptors.response.use(
 )
 
 /**
- * Bare axios instance WITHOUT interceptors.
+ * Bare axios instance without the authentication interceptor.
  *
- * Used for token refresh and logout so a failed refresh can never
- * loop back into the 401 interceptor and redirect to /login.
+ * Used for refresh and logout operations.
  */
 const rawApi = axios.create({
     baseURL: '/api',
@@ -102,4 +102,5 @@ const rawApi = axios.create({
 })
 
 export { rawApi }
+
 export default api

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FoodCategory } from '../../types/food'
-import { getFoodImage, getCategoryImage } from '../../utils/foodImages'
+import { getFoodImage, getCategoryImage } from '../../utils/foodImages/foodImages'
 
 interface FoodImageProps {
     src?: string | null

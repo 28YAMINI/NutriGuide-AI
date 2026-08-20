@@ -1,5 +1,6 @@
-// frontend/src/services/mealPlanService.ts
 import api from './api'
+
+export type MealPlanFocus = 'DAILY' | 'WEEKLY' | 'GROCERY'
 
 export interface MealPlanResponse {
     plan: string
@@ -28,24 +29,47 @@ export interface MealPlanHistoryResponse {
     total: number
 }
 
+export interface GenerateMealPlanRequest {
+    days: number
+    mealsPerDay: number
+    focus?: MealPlanFocus
+}
+
 export const mealPlanService = {
     /** POST /api/ai/meal-plan — generate a new AI meal plan. */
-    generate(request: { days: number; mealsPerDay: number }): Promise<MealPlanResponse> {
-        return api.post<MealPlanResponse>('/ai/meal-plan', request).then((r) => r.data)
+    generate(
+        request: GenerateMealPlanRequest
+    ): Promise<MealPlanDetailResponse> {
+        return api
+            .post<MealPlanDetailResponse>('/meal-plans/generate', request)
+            .then((r) => r.data)
     },
 
     /** GET /api/meal-plans?date= — get plan for a specific date. */
     getByDate(date: string): Promise<MealPlanDetailResponse> {
-        return api.get<MealPlanDetailResponse>('/meal-plans', { params: { date } }).then((r) => r.data)
+        return api
+            .get<MealPlanDetailResponse>('/meal-plans', {
+                params: { date },
+            })
+            .then((r) => r.data)
     },
 
     /** GET /api/meal-plans/{id} — get plan by id. */
     getById(id: number): Promise<MealPlanDetailResponse> {
-        return api.get<MealPlanDetailResponse>(`/meal-plans/${id}`).then((r) => r.data)
+        return api
+            .get<MealPlanDetailResponse>(`/meal-plans/${id}`)
+            .then((r) => r.data)
     },
 
     /** GET /api/meal-plans/history?from=&to= — plan history. */
-    getHistory(from: string, to: string): Promise<MealPlanHistoryResponse> {
-        return api.get<MealPlanHistoryResponse>('/meal-plans/history', { params: { from, to } }).then((r) => r.data)
+    getHistory(
+        from: string,
+        to: string
+    ): Promise<MealPlanHistoryResponse> {
+        return api
+            .get<MealPlanHistoryResponse>('/meal-plans/history', {
+                params: { from, to },
+            })
+            .then((r) => r.data)
     },
 }
