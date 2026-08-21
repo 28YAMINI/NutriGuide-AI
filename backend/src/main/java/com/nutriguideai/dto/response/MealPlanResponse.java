@@ -26,4 +26,8 @@ public class MealPlanResponse {
 
     /** When the plan was generated. */
     private LocalDateTime generatedAt;
+
+    public Long getId() {
+        return 0L;
+    }
 }

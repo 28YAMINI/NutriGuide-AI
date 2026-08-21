@@ -5,7 +5,6 @@ import com.nutriguideai.dto.response.MealPlanDetailResponse;
 import com.nutriguideai.dto.response.MealPlanHistoryResponse;
 
 import java.time.LocalDate;
-
 public interface MealPlanService {
 
     MealPlanDetailResponse generate(MealPlanRequest request);

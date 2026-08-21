@@ -51,7 +51,8 @@ app:
 ai:
   gemini:
     base-url: https://generativelanguage.googleapis.com/v1beta
-    model: gemini-2.5-flash
-    api-key: ${NUTRIGUIDE_GEMINI_API_KEY}
+    model: gemini-1.5-flash
+    api-key: ${GEMINI_API_KEY:test-key}
     temperature: 0.4
     max-output-tokens: 4096
+

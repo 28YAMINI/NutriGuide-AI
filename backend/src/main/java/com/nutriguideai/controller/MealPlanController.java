@@ -28,8 +28,10 @@ public class MealPlanController {
     @PostMapping("/generate")
     @Operation(summary = "Generate today's meal plan",
             description = "Calls the AI service, persists the plan, enforces one plan per user per day.")
-    public ResponseEntity<MealPlanDetailResponse> generate(@Valid @RequestBody MealPlanRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(mealPlanService.generate(request));
+    public ResponseEntity<MealPlanDetailResponse> generate(
+            @Valid @RequestBody MealPlanRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(mealPlanService.generate(request));
     }
 
     @GetMapping

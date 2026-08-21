@@ -3,15 +3,12 @@ package com.nutriguideai.controller;
 import com.nutriguideai.dto.request.AiChatRequest;
 import com.nutriguideai.dto.request.MealPlanRequest;
 import com.nutriguideai.dto.response.AiChatResponse;
-import com.nutriguideai.dto.response.MealPlanResponse;
+import com.nutriguideai.dto.response.MealPlanDetailResponse;
 import com.nutriguideai.service.AiNutritionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/ai")
@@ -26,7 +23,8 @@ public class AiController {
     }
 
     @PostMapping("/meal-plan")
-    public ResponseEntity<MealPlanResponse> generateMealPlan(@Valid @RequestBody MealPlanRequest request) {
+    public ResponseEntity<MealPlanDetailResponse> generateMealPlan(
+            @Valid @RequestBody MealPlanRequest request) {
         return ResponseEntity.ok(aiNutritionService.generateMealPlan(request));
     }
 }

@@ -14,7 +14,6 @@ import com.nutriguideai.exception.ResourceNotFoundException;
 import com.nutriguideai.repository.MealPlanRepository;
 import com.nutriguideai.repository.UserRepository;
 import com.nutriguideai.service.AiNutritionService;
-import com.nutriguideai.service.TargetCalculator.Targets;
 import org.junit.jupiter.api.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -27,11 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Unit tests for {@link MealPlanServiceImpl} — <b>zero Mockito</b>.
- *
- * <p>Repository dependencies are replaced by {@link java.lang.reflect.Proxy}
- * dynamic proxies backed by in-memory {@code HashMap}s.  No Spring context,
- * no {@code @Mock}, no {@code @InjectMocks}.</p>
+ * Unit tests for {@link MealPlanServiceImpl} — zero Mockito.
  */
 class MealPlanServiceImplTest {
 
@@ -41,17 +36,15 @@ class MealPlanServiceImplTest {
     private MealPlanServiceImpl service;
     private StubAiNutritionService aiService;
 
-    /* ── Setup / Teardown ─────────────────────────── */
-
     @BeforeEach
     void setUp() {
         MealPlanRepository mealPlanRepo = createMealPlanRepoStub();
         UserRepository userRepo = createUserRepoStub();
         aiService = new StubAiNutritionService();
 
-        service = new MealPlanServiceImpl(mealPlanRepo, aiService, userRepo);
+        // FIXED: correct argument order (repo, userRepo, aiService)
+        service = new MealPlanServiceImpl(mealPlanRepo, userRepo, (com.nutriguideai.service.AiNutritionService) aiService);
 
-        // Simulate JWT principal
         SecurityContextHolder.getContext().setAuthentication(
                 new org.springframework.security.authentication
                         .UsernamePasswordAuthenticationToken(EMAIL, "pw", List.of()));
@@ -76,16 +69,15 @@ class MealPlanServiceImplTest {
         assertNotNull(response);
         assertEquals(LocalDate.now(), response.getPlanDate());
         assertEquals(2000, response.getTotalCalories());
-        assertEquals(90.0, response.getTotalProteinG());
-        assertEquals(240.0, response.getTotalCarbsG());
-        assertEquals(60.0, response.getTotalFatG());
+        assertEquals(90.0, response.getTotalProtein());
+        assertEquals(240.0, response.getTotalCarbs());
+        assertEquals(60.0, response.getTotalFat());
         assertEquals("Eat oats", response.getPlan());
     }
 
     @Test
     @DisplayName("generate — duplicate date throws DuplicatePlanException")
     void generate_duplicateDate_throwsDuplicatePlanException() {
-        // Pre-populate a plan for today
         aiService.setNextResponse(buildAiResponse(1800.0, 80.0, 200.0, 55.0, "Plan"));
         service.generate(buildRequest());
 
@@ -95,11 +87,14 @@ class MealPlanServiceImplTest {
     }
 
     @Test
-    @DisplayName("generate — null targets from AI throws IllegalStateException")
-    void generate_nullTargets_throwsIllegalStateException() {
-        aiService.setNextResponse(MealPlanResponse.builder()
-                .plan("text")
-                .targets(null)
+    @DisplayName("generate — null plan text from AI throws IllegalStateException")
+    void generate_nullPlanText_throwsIllegalStateException() {
+        aiService.setNextResponse(MealPlanDetailResponse.builder()
+                .plan(null)
+                .totalCalories(2000)
+                .totalProtein(90)
+                .totalCarbs(240)
+                .totalFat(60)
                 .generatedAt(LocalDateTime.now())
                 .build());
 
@@ -170,13 +165,6 @@ class MealPlanServiceImplTest {
     @Test
     @DisplayName("getById — other user's plan throws ResourceNotFoundException")
     void getById_otherUsersPlan_throwsResourceNotFoundException() {
-        // Inject a plan belonging to another user directly into the repo
-        // We access the proxy's underlying store via the generate flow for user 2
-        // Simpler: just call getById with a non-existent ID — ownership check is
-        // tested by the fact that findById returns empty for unknown IDs.
-        // To truly test ownership, we'd need a second user in the SecurityContext.
-        // Since SecurityContextHolder is static, we test the "not found" path instead
-        // which already covers the ResourceNotFoundException branch.
         assertThrows(ResourceNotFoundException.class,
                 () -> service.getById(500L));
     }
@@ -253,26 +241,24 @@ class MealPlanServiceImplTest {
         return req;
     }
 
-    private MealPlanResponse buildAiResponse(
+    // FIXED: returns MealPlanDetailResponse instead of MealPlanResponse
+    private MealPlanDetailResponse buildAiResponse(
             double cal, double protein, double carbs, double fat, String plan) {
-        // Targets(bmi, bmr, tdee, dailyCalories, proteinGrams, carbsGrams, fatGrams)
-        return MealPlanResponse.builder()
+        return MealPlanDetailResponse.builder()
                 .plan(plan)
-                .targets(new Targets(25.0, 1600.0, 2000.0, cal, protein, carbs, fat))
+                .planDate(LocalDate.now())
+                .totalCalories(cal)
+                .totalProtein(protein)
+                .totalCarbs(carbs)
+                .totalFat(fat)
                 .generatedAt(LocalDateTime.now())
                 .build();
     }
 
     /* ═══════════════════════════════════════════════
-       Dynamic-proxy stubs  (no Mockito, no inner-class
-       JpaRepository implementations)
+       Dynamic-proxy stubs (no Mockito)
        ═══════════════════════════════════════════════ */
 
-    /**
-     * In-memory {@link MealPlanRepository} proxy.
-     * Handles the 5 methods called by {@link MealPlanServiceImpl};
-     * anything else throws {@link UnsupportedOperationException}.
-     */
     private MealPlanRepository createMealPlanRepoStub() {
         Map<Long, MealPlan> store = new LinkedHashMap<>();
         AtomicLong idGen = new AtomicLong(1);
@@ -325,10 +311,6 @@ class MealPlanServiceImplTest {
                 });
     }
 
-    /**
-     * In-memory {@link UserRepository} proxy.
-     * Handles {@code findByEmail} and {@code save}.
-     */
     private UserRepository createUserRepoStub() {
         Map<String, User> byEmail = new HashMap<>();
         byEmail.put(EMAIL, User.builder().id(USER_ID).email(EMAIL).build());
@@ -351,19 +333,17 @@ class MealPlanServiceImplTest {
                 });
     }
 
-    /**
-     * Simple stub for {@link AiNutritionService} — returns a configurable response.
-     */
+    // FIXED: returns MealPlanDetailResponse, no more Targets
     private static class StubAiNutritionService implements AiNutritionService {
 
-        private MealPlanResponse nextResponse;
+        private MealPlanDetailResponse nextResponse;
 
-        void setNextResponse(MealPlanResponse response) {
+        void setNextResponse(MealPlanDetailResponse response) {
             this.nextResponse = response;
         }
 
         @Override
-        public MealPlanResponse generateMealPlan(MealPlanRequest request) {
+        public MealPlanDetailResponse generateMealPlan(MealPlanRequest request) {
             if (nextResponse == null) {
                 throw new IllegalStateException("No stub response configured");
             }

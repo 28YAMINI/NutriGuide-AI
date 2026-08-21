@@ -1,147 +1,152 @@
 package com.nutriguideai.service.impl;
 
+import com.nutriguideai.exception.BadRequestException;
+import com.nutriguideai.exception.ResourceNotFoundException;
+import com.nutriguideai.service.AiNutritionService;
 import com.nutriguideai.dto.request.MealPlanRequest;
 import com.nutriguideai.dto.response.MealPlanDetailResponse;
 import com.nutriguideai.dto.response.MealPlanHistoryResponse;
-import com.nutriguideai.dto.response.MealPlanResponse;
 import com.nutriguideai.entity.MealPlan;
 import com.nutriguideai.entity.User;
-import com.nutriguideai.exception.BadRequestException;
 import com.nutriguideai.exception.DuplicatePlanException;
-import com.nutriguideai.exception.ResourceNotFoundException;
-import com.nutriguideai.exception.UnauthorizedException;
 import com.nutriguideai.repository.MealPlanRepository;
 import com.nutriguideai.repository.UserRepository;
-import com.nutriguideai.service.AiNutritionService;
 import com.nutriguideai.service.MealPlanService;
-import com.nutriguideai.service.TargetCalculator.Targets;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MealPlanServiceImpl implements MealPlanService {
 
-    private static final long MAX_HISTORY_RANGE_DAYS = 7;
-
     private final MealPlanRepository mealPlanRepository;
-    private final AiNutritionService aiNutritionService;
     private final UserRepository userRepository;
+    private final AiNutritionService aiNutritionService;
 
     @Override
-    @Transactional
     public MealPlanDetailResponse generate(MealPlanRequest request) {
-        User user = currentUser();
-        LocalDate today = LocalDate.now();
+        User user = getCurrentUser();
 
-        if (mealPlanRepository.existsByUserIdAndPlanDate(user.getId(), today)) {
-            throw new DuplicatePlanException(
-                    "A meal plan already exists for " + today + ". Delete it or choose another day.");
+        // Check for duplicate plan today
+        if (mealPlanRepository.existsByUserIdAndPlanDate(user.getId(), LocalDate.now())) {
+            throw new DuplicatePlanException("Meal plan for today already exists");
         }
 
-        MealPlanResponse aiResponse = aiNutritionService.generateMealPlan(request);
-        Targets targets = aiResponse.getTargets();
-        if (targets == null) {
-            throw new IllegalStateException(
-                    "Complete your profile (age, height, weight) before generating a meal plan.");
+        // Call AI service
+        MealPlanDetailResponse aiResponse = aiNutritionService.generateMealPlan(request);
+
+        // Validate
+        if (aiResponse == null || aiResponse.getPlan() == null) {
+            throw new IllegalStateException("AI service returned empty meal plan");
         }
 
+        // Persist
         MealPlan plan = MealPlan.builder()
                 .userId(user.getId())
-                .planDate(today)
-                .totalCalories((int) Math.round(targets.dailyCalories()))
-                .totalProteinG(targets.proteinGrams())
-                .totalCarbsG(targets.carbsGrams())
-                .totalFatG(targets.fatGrams())
+                .planDate(LocalDate.now())
+                .totalCalories((int) aiResponse.getTotalCalories())
+                .totalProteinG(aiResponse.getTotalProtein())
+                .totalCarbsG(aiResponse.getTotalCarbs())
+                .totalFatG(aiResponse.getTotalFat())
                 .planText(aiResponse.getPlan())
-                .isGenerated(true)
+                .createdAt(LocalDateTime.now())
                 .build();
+        mealPlanRepository.save(plan);
 
-        MealPlan saved = mealPlanRepository.save(plan);
-        log.info("Meal plan {} saved for user {}", saved.getId(), user.getEmail());
-
-        return toResponse(saved);
+        return mapToDetailResponse(plan);
     }
 
     @Override
     public MealPlanDetailResponse getByDate(LocalDate date) {
-        validateDateRange(date);
-        User user = currentUser();
-        MealPlan plan = mealPlanRepository.findByUserIdAndPlanDate(user.getId(), date)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "MealPlan", "date", date.toString()));
-        return toResponse(plan);
+        LocalDate today = LocalDate.now();
+        if (date.isBefore(today.minusDays(7)) || date.isAfter(today.plusDays(7))) {
+            throw new BadRequestException("Date must be within 7-day window");
+        }
+        User user = getCurrentUser();
+        log.debug("Fetching meal plan for user={}, date={}", user.getId(), date);
+
+        MealPlan plan = mealPlanRepository
+                .findByUserIdAndPlanDate(user.getId(), date)
+                .orElseThrow(() -> new ResourceNotFoundException("No meal plan found for " + date));
+
+        return mapToDetailResponse(plan);
     }
+
 
     @Override
     public MealPlanDetailResponse getById(Long planId) {
-        User user = currentUser();
+        User user = getCurrentUser();
+        log.debug("Fetching meal plan id={} for user={}", planId, user.getId());
+
         MealPlan plan = mealPlanRepository.findById(planId)
-                .orElseThrow(() -> new ResourceNotFoundException("MealPlan", "id", planId));
-        // Ownership check: hide other users' plans (no existence leak).
+                .orElseThrow(() -> new ResourceNotFoundException("Meal plan not found: " + planId));
+
         if (!plan.getUserId().equals(user.getId())) {
-            throw new ResourceNotFoundException("MealPlan", "id", planId);
+            throw new ResourceNotFoundException("Access denied: plan does not belong to you");
         }
-        return toResponse(plan);
+
+        return mapToDetailResponse(plan);
     }
 
     @Override
     public MealPlanHistoryResponse getHistory(LocalDate from, LocalDate to) {
+
+
         if (from == null || to == null) {
-            throw new BadRequestException("Both 'from' and 'to' dates are required.");
+            throw new BadRequestException("Date range from and to are required");
         }
         if (from.isAfter(to)) {
-            throw new BadRequestException("'from' must be on or before 'to'.");
+            throw new BadRequestException("'from' date must be before 'to' date");
         }
-        if (ChronoUnit.DAYS.between(from, to) > MAX_HISTORY_RANGE_DAYS) {
-            throw new BadRequestException("History range cannot exceed " + MAX_HISTORY_RANGE_DAYS + " days.");
+        User user = getCurrentUser();
+        long daysBetween = ChronoUnit.DAYS.between(from, to);
+        if (daysBetween > 7) {
+            throw new BadRequestException("History range cannot exceed 7 days");
         }
-        User user = currentUser();
+
+        log.debug("Fetching meal plan history for user={}, from={}, to={}",
+                user.getId(), from, to);
+
         List<MealPlan> plans = mealPlanRepository
                 .findByUserIdAndPlanDateBetweenOrderByPlanDateDesc(user.getId(), from, to);
-        List<MealPlanDetailResponse> items = plans.stream().map(this::toResponse).toList();
-        return MealPlanHistoryResponse.builder().plans(items).total(items.size()).build();
-    }
 
-    private MealPlanDetailResponse toResponse(MealPlan plan) {
-        return MealPlanDetailResponse.builder()
-                .id(plan.getId())
-                .planDate(plan.getPlanDate())
-                .totalCalories(plan.getTotalCalories())
-                .totalProteinG(plan.getTotalProteinG())
-                .totalCarbsG(plan.getTotalCarbsG())
-                .totalFatG(plan.getTotalFatG())
-                .plan(plan.getPlanText())
-                .generatedAt(plan.getCreatedAt())
+        List<MealPlanDetailResponse> planResponses = plans.stream()
+                .map(this::mapToDetailResponse)
+                .collect(Collectors.toList());
+
+        return MealPlanHistoryResponse.builder()
+                .plans(planResponses)
+                .total(planResponses.size())
                 .build();
     }
 
-    private void validateDateRange(LocalDate date) {
-        LocalDate today = LocalDate.now();
-        if (date.isBefore(today.minusDays(MAX_HISTORY_RANGE_DAYS))
-                || date.isAfter(today.plusDays(MAX_HISTORY_RANGE_DAYS))) {
-            throw new BadRequestException(
-                    "Date must be within " + MAX_HISTORY_RANGE_DAYS + " days of today.");
-        }
+    // ─── Helpers ───────────────────────────────────────────────────────
+
+    private User getCurrentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found: " + email));
     }
 
-    /** Identity ALWAYS comes from the JWT principal, never from client input. */
-    private User currentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || authentication.getName() == null) {
-            throw new UnauthorizedException("User is not authenticated");
-        }
-        return userRepository.findByEmail(authentication.getName())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User", "email", authentication.getName()));
+    private MealPlanDetailResponse mapToDetailResponse(MealPlan plan) {
+        return MealPlanDetailResponse.builder()
+                .id(plan.getId())
+                .planDate(LocalDate.now())
+                .totalCalories(plan.getTotalCalories())
+                .totalProtein(plan.getTotalProteinG())
+                .totalCarbs(plan.getTotalCarbsG())
+                .totalFat(plan.getTotalFatG())
+                .plan(plan.getPlanText())
+                .generatedAt(plan.getCreatedAt())
+                .build();
     }
 }

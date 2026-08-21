@@ -14,5 +14,5 @@ import java.util.List;
 public class MealPlanHistoryResponse {
 
     private List<MealPlanDetailResponse> plans;
-    private long total;
+    private int total;
 }

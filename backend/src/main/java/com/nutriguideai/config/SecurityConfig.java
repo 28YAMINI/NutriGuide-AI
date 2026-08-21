@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -25,7 +24,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -64,8 +62,7 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // Public APIs (register, login, refresh, logout carry
-                        // their own credential, so they stay permitAll)
+                        // Public APIs
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/swagger-ui/**",
@@ -80,25 +77,26 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/foods/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/foods/**").hasRole("ADMIN")
 
-                        // Health APIs — all require authentication;
-                        // ownership is enforced in HealthService
+                        // Health APIs
                         .requestMatchers("/api/health/**").authenticated()
 
                         // User APIs
                         .requestMatchers("/api/users/me").authenticated()
                         .requestMatchers("/api/users/*").hasRole("ADMIN")
 
-                        // Goals APIs — all require authentication;
-                        // ownership is enforced in GoalServiceImpl
+                        // Goals APIs
                         .requestMatchers("/api/goals/**").authenticated()
 
-                        // Food Preferences APIs — all require authentication;
-                        // ownership is enforced in PreferenceServiceImpl
+                        // Food Preferences APIs
                         .requestMatchers("/api/preferences/**").authenticated()
 
-                        // AI Nutrition APIs — require authentication; identity comes from the JWT
+                        // AI Nutrition APIs
                         .requestMatchers("/api/ai/**").authenticated()
-                        // Everything else — MUST stay last, exactly once
+
+                        // Meal Plan APIs
+                        .requestMatchers("/api/meal-plans/**").authenticated()
+
+                        // MUST BE LAST
                         .anyRequest().authenticated()
                 )
 
