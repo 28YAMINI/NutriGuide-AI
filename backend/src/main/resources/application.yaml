@@ -38,7 +38,6 @@ app:
   cors:
     allowed-origins: http://localhost:5173,http://localhost:5174,http://localhost:5176,http://localhost:3000
 
-
   verification:
     expiration-ms: 86400000
 
@@ -55,4 +54,3 @@ ai:
     api-key: ${GEMINI_API_KEY:test-key}
     temperature: 0.4
     max-output-tokens: 4096
-
