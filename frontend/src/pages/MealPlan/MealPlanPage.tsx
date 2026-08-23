@@ -1,353 +1,248 @@
-import { useEffect, useState } from 'react'
-import {
-    Sparkles,
-    Utensils,
-    ChevronLeft,
-    ChevronRight,
-    Flame,
-    Beef,
-    Wheat,
-    Droplets,
-} from 'lucide-react'
+// File: src/pages/MealPlanPage.tsx
 
-import {
-    mealPlanService,
-    type MealPlanDetailResponse,
-    type MealPlanFocus,
-} from '../../services/mealPlanService'
+import type { MealPlanDetailResponse, MealPlanFocus, MealPlanRequest } from "../../types/mealPlan.ts";
+import { useEffect, useState } from "react";
+import { mealPlanService } from "../../services/mealPlanService.ts";
 
-import { Card } from '../../components/ui/Card'
-import { Button } from '../../components/ui/Button'
-
-function MealPlanSkeleton() {
-    return (
-        <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-            <div className="animate-pulse space-y-6">
-                <div className="h-8 w-48 rounded-lg bg-muted" />
-                <div className="h-12 w-full rounded-xl bg-muted" />
-                <div className="h-64 rounded-xl border border-border bg-card" />
-            </div>
-        </div>
-    )
-}
+const FOCUS_OPTIONS: { id: MealPlanFocus; label: string; desc: string; icon: string }[] = [
+    { id: 'DAILY', label: 'Standard Daily', desc: 'Balanced everyday nutrition', icon: '🥗' },
+    { id: 'HIGH_PROTEIN', label: 'High Protein', desc: 'Muscle building & recovery', icon: '🥩' },
+    { id: 'LOW_CARB', label: 'Low Carb', desc: 'Lower carbs & clean fats', icon: '🥑' },
+    { id: 'BALANCED', label: 'Macro Balanced', desc: 'Optimal ratio of all macros', icon: '⚖️' },
+    { id: 'BUDGET_FRIENDLY', label: 'Budget Friendly', desc: 'Accessible simple ingredients', icon: '🛒' },
+];
 
 export function MealPlanPage() {
-    const [plan, setPlan] = useState<MealPlanDetailResponse | null>(null)
-    const [isLoading, setIsLoading] = useState(true)
-    const [isGenerating, setIsGenerating] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+    const [days, setDays] = useState<number>(3);
+    const [mealsPerDay, setMealsPerDay] = useState<number>(3);
+    const [focus, setFocus] = useState<MealPlanFocus>('DAILY');
 
-    const [days, setDays] = useState(1)
-    const [mealsPerDay, setMealsPerDay] = useState(3)
-    const [focus, setFocus] = useState<MealPlanFocus>('DAILY')
+    const [loading, setLoading] = useState<boolean>(false);
+    const [initialLoading, setInitialLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
+    const [mealPlan, setMealPlan] = useState<MealPlanDetailResponse | null>(null);
 
-    const [selectedDate, setSelectedDate] = useState(() => {
-        const d = new Date()
-        return d.toISOString().split('T')[0]
-    })
+    const getTodayISO = () => new Date().toISOString().split('T')[0];
 
-    const loadPlan = async (date: string) => {
-        setIsLoading(true)
-        setError(null)
-
-        await mealPlanService
-            .getByDate(date)
-            .then((result) => {
-                setPlan(result)
-            })
-            .catch(() => {
-                setPlan(null)
-            })
-            .finally(() => {
-                setIsLoading(false)
-            })
-    }
-
+    // 1. On component load, check if today's meal plan already exists in database
     useEffect(() => {
-        void loadPlan(selectedDate)
-    }, [selectedDate])
+        let isMounted = true;
 
+        const fetchTodayPlan = async () => {
+            try {
+                const today = getTodayISO();
+                const existing = await mealPlanService.getByDate(today);
+                if (isMounted && existing) {
+                    setMealPlan(existing);
+                }
+            } catch {
+                // Gracefully ignore - no plan for today yet
+            } finally {
+                if (isMounted) {
+                    setInitialLoading(false);
+                }
+            }
+        };
+
+        // Explicitly invoke and catch to satisfy linter rule: "Promise returned from fetchTodayPlan is ignored"
+        void fetchTodayPlan();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    // 2. Handler to generate new plan
     const handleGenerate = async () => {
-        setIsGenerating(true)
-        setError(null)
+        try {
+            setLoading(true);
+            setError(null);
 
-        await mealPlanService
-            .generate({
-                days,
-                mealsPerDay,
+            const payload: MealPlanRequest = {
+                days: Number(days),
+                mealsPerDay: Number(mealsPerDay),
                 focus,
-            })
-            .then((result) => {
-                setPlan(result)
-            })
-            .catch((err: unknown) => {
-                const msg =
-                    err instanceof Error
-                        ? err.message
-                        : 'Failed to generate meal plan'
+            };
 
-                setError(msg)
-            })
-            .finally(() => {
-                setIsGenerating(false)
-            })
-    }
+            const result = await mealPlanService.generate(payload);
+            setMealPlan(result);
+        } catch (err: any) {
+            const status = err?.response?.status;
+            const resMsg = err?.response?.data?.message || err?.message || '';
 
-    const navigateDate = (offset: number) => {
-        const d = new Date(selectedDate)
-        d.setDate(d.getDate() + offset)
-        setSelectedDate(d.toISOString().split('T')[0])
-    }
+            // If backend threw DuplicatePlanException, fetch today's plan instead
+            if (status === 409 || resMsg.toLowerCase().includes('already exists')) {
+                setError('A meal plan for today already exists! Displaying today’s plan below.');
+                try {
+                    const existing = await mealPlanService.getByDate(getTodayISO());
+                    if (existing) {
+                        setMealPlan(existing);
+                    }
+                } catch {
+                    // ignore
+                }
+            } else {
+                setError(resMsg || 'Failed to generate meal plan. Please check backend AI configuration.');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    const formatDate = (dateStr: string) =>
-        new Date(dateStr).toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric',
-        })
-
-    if (isLoading) {
-        return <MealPlanSkeleton />
+    if (initialLoading) {
+        return (
+            <div className="flex items-center justify-center p-12 text-gray-500 font-medium">
+                Checking today's meal plan...
+            </div>
+        );
     }
 
     return (
-        <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto p-6 space-y-8">
             {/* Header */}
-            <header>
-                <h1 className="text-3xl font-bold tracking-tight">
-                    Meal Plan
-                </h1>
-
-                <p className="mt-1 text-muted-foreground">
-                    AI-generated nutrition plan based on your profile.
+            <div>
+                <h1 className="text-2xl font-bold text-gray-900">AI Meal Plan Generator</h1>
+                <p className="text-sm text-gray-500 mt-1">
+                    Customize duration, meal count, and dietary focus powered by your AI Nutrition Assistant.
                 </p>
-            </header>
-
-            {/* Date Navigator */}
-            <div className="mt-8 flex items-center justify-center gap-4">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigateDate(-1)}
-                    aria-label="Previous day"
-                >
-                    <ChevronLeft className="h-4 w-4" />
-                </Button>
-
-                <span className="min-w-[200px] text-center text-sm font-medium">
-                    {formatDate(selectedDate)}
-                </span>
-
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigateDate(1)}
-                    aria-label="Next day"
-                >
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
             </div>
 
-            {/* AI Plan Controls */}
-            <Card
-                className="mt-8"
-                title="Create your plan"
-                description="Choose how you want NutriGuide AI to build your meal plan."
-            >
-                <div className="grid gap-4 sm:grid-cols-3">
-                    {/* Days */}
-                    <div>
-                        <label
-                            htmlFor="meal-plan-days"
-                            className="text-sm font-medium"
-                        >
-                            Days
-                        </label>
-
-                        <select
-                            id="meal-plan-days"
-                            value={days}
-                            onChange={(e) =>
-                                setDays(Number(e.target.value))
-                            }
-                            disabled={isGenerating}
-                            className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {[1, 2, 3, 4, 5, 6, 7].map((value) => (
-                                <option key={value} value={value}>
-                                    {value} {value === 1 ? 'day' : 'days'}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Meals per day */}
-                    <div>
-                        <label
-                            htmlFor="meal-plan-meals"
-                            className="text-sm font-medium"
-                        >
-                            Meals per day
-                        </label>
-
-                        <select
-                            id="meal-plan-meals"
-                            value={mealsPerDay}
-                            onChange={(e) =>
-                                setMealsPerDay(Number(e.target.value))
-                            }
-                            disabled={isGenerating}
-                            className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {[2, 3, 4, 5, 6].map((value) => (
-                                <option key={value} value={value}>
-                                    {value} meals
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Focus */}
-                    <div>
-                        <label
-                            htmlFor="meal-plan-focus"
-                            className="text-sm font-medium"
-                        >
-                            Planning focus
-                        </label>
-
-                        <select
-                            id="meal-plan-focus"
-                            value={focus}
-                            onChange={(e) =>
-                                setFocus(e.target.value as MealPlanFocus)
-                            }
-                            disabled={isGenerating}
-                            className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <option value="DAILY">Daily nutrition</option>
-                            <option value="WEEKLY">Weekly planning</option>
-                            <option value="GROCERY">Grocery focused</option>
-                        </select>
-                    </div>
+            {/* Info / Error Banner */}
+            {error && (
+                <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-sm font-medium">
+                    {error}
                 </div>
-
-                {/* Generate */}
-                <div className="mt-5 flex justify-center">
-                    <Button
-                        onClick={() => void handleGenerate()}
-                        disabled={isGenerating}
-                    >
-                        <Sparkles className="mr-2 h-4 w-4" />
-
-                        {isGenerating
-                            ? 'Generating…'
-                            : plan
-                                ? 'Regenerate Meal Plan'
-                                : 'Generate Meal Plan'}
-                    </Button>
-                </div>
-
-                {error && (
-                    <p className="mt-3 text-center text-sm text-destructive">
-                        {error}
-                    </p>
-                )}
-            </Card>
-
-            {/* No Plan */}
-            {!plan && !error && (
-                <Card className="mt-8">
-                    <div className="flex flex-col items-center gap-4 py-8 text-center">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <Utensils className="h-7 w-7" />
-                        </div>
-
-                        <div>
-                            <h3 className="font-semibold">
-                                No meal plan for this day
-                            </h3>
-
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Choose your preferences above and generate a
-                                personalized plan.
-                            </p>
-                        </div>
-                    </div>
-                </Card>
             )}
 
-            {/* Plan Display */}
-            {plan && (
-                <div className="mt-8 space-y-6">
-                    {/* Nutrition Targets */}
-                    <Card
-                        title="Daily Targets"
-                        description="The calorie and macro targets this plan was built around."
+            {/* Options Form */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
+
+                {/* 1. Days (1 to 7) */}
+                <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
+                        1. Select Number of Days (1 – 7 Days)
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                        {[1, 2, 3, 4, 5, 6, 7].map((num) => (
+                            <button
+                                key={num}
+                                type="button"
+                                onClick={() => setDays(num)}
+                                className={`py-3 text-center border rounded-xl font-medium transition-all ${
+                                    days === num
+                                        ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-500/20 font-bold'
+                                        : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                                }`}
+                            >
+                                {num} {num === 1 ? 'Day' : 'Days'}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 2. Meals Per Day (2 to 6) */}
+                <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
+                        2. Select How Many Meals per Day (2 – 6 Meals)
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                        {[
+                            { count: 2, label: '2 Meals', sub: 'Brunch & Dinner' },
+                            { count: 3, label: '3 Meals', sub: 'Standard 3 Meals' },
+                            { count: 4, label: '4 Meals', sub: '3 Meals + 1 Snack' },
+                            { count: 5, label: '5 Meals', sub: '3 Meals + 2 Snacks' },
+                            { count: 6, label: '6 Meals', sub: 'High Frequency' },
+                        ].map((opt) => (
+                            <button
+                                key={opt.count}
+                                type="button"
+                                onClick={() => setMealsPerDay(opt.count)}
+                                className={`p-3 text-left border rounded-xl transition-all ${
+                                    mealsPerDay === opt.count
+                                        ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-500/20 font-semibold'
+                                        : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                            >
+                                <div className="text-sm font-semibold">{opt.label}</div>
+                                <div className="text-xs text-gray-500 mt-0.5">{opt.sub}</div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 3. Nutrition Focus */}
+                <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
+                        3. Select Nutrition Focus
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {FOCUS_OPTIONS.map((opt) => (
+                            <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => setFocus(opt.id)}
+                                className={`p-3.5 text-left border rounded-xl flex items-start gap-3 transition-all ${
+                                    focus === opt.id
+                                        ? 'border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-500/20'
+                                        : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                            >
+                                <span className="text-2xl">{opt.icon}</span>
+                                <div>
+                                    <div className="font-semibold text-sm text-gray-900">{opt.label}</div>
+                                    <div className="text-xs text-gray-500 mt-0.5">{opt.desc}</div>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Submit */}
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                    <div className="text-xs text-gray-500">
+                        Selected: <strong>{days} Days</strong> • <strong>{mealsPerDay} Meals/Day</strong> • Focus: <strong>{focus}</strong>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleGenerate}
+                        disabled={loading}
+                        className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-sm rounded-xl transition-all shadow"
                     >
-                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                            <div className="text-center">
-                                <Flame className="mx-auto h-5 w-5 text-orange-500" />
+                        {loading ? 'Generating with AI...' : '✨ Generate AI Meal Plan'}
+                    </button>
+                </div>
+            </div>
 
-                                <p className="mt-1 text-lg font-bold">
-                                    {plan.totalCalories}
-                                </p>
-
-                                <p className="text-xs text-muted-foreground">
-                                    Calories
-                                </p>
+            {/* Meal Plan Display */}
+            {mealPlan && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
+                    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                        <div>
+                            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Active Plan</span>
+                            <h2 className="text-xl font-bold text-gray-900">Meal Plan for {mealPlan.planDate}</h2>
+                        </div>
+                        <div className="flex gap-4 text-xs font-medium text-gray-600">
+                            <div className="bg-gray-50 px-3 py-1.5 rounded-lg border">
+                                <strong>{mealPlan.totalCalories}</strong> kcal
                             </div>
-
-                            <div className="text-center">
-                                <Beef className="mx-auto h-5 w-5 text-red-500" />
-
-                                <p className="mt-1 text-lg font-bold">
-                                    {Math.round(plan.totalProteinG)}g
-                                </p>
-
-                                <p className="text-xs text-muted-foreground">
-                                    Protein
-                                </p>
+                            <div className="bg-gray-50 px-3 py-1.5 rounded-lg border">
+                                Protein: <strong>{mealPlan.totalProtein}g</strong>
                             </div>
-
-                            <div className="text-center">
-                                <Wheat className="mx-auto h-5 w-5 text-amber-500" />
-
-                                <p className="mt-1 text-lg font-bold">
-                                    {Math.round(plan.totalCarbsG)}g
-                                </p>
-
-                                <p className="text-xs text-muted-foreground">
-                                    Carbs
-                                </p>
+                            <div className="bg-gray-50 px-3 py-1.5 rounded-lg border">
+                                Carbs: <strong>{mealPlan.totalCarbs}g</strong>
                             </div>
-
-                            <div className="text-center">
-                                <Droplets className="mx-auto h-5 w-5 text-blue-500" />
-
-                                <p className="mt-1 text-lg font-bold">
-                                    {Math.round(plan.totalFatG)}g
-                                </p>
-
-                                <p className="text-xs text-muted-foreground">
-                                    Fat
-                                </p>
+                            <div className="bg-gray-50 px-3 py-1.5 rounded-lg border">
+                                Fat: <strong>{mealPlan.totalFat}g</strong>
                             </div>
                         </div>
-                    </Card>
+                    </div>
 
-                    {/* Plan Text */}
-                    <Card
-                        title="Your Meal Plan"
-                        description="AI-generated recommendations based on your profile and preferences."
-                    >
-                        <div className="prose prose-sm max-w-none whitespace-pre-wrap text-foreground">
-                            {plan.plan}
-                        </div>
-                    </Card>
+                    {/* Render Markdown / AI Plan Content */}
+                    <div className="prose max-w-none text-gray-800 text-sm whitespace-pre-wrap leading-relaxed font-sans bg-gray-50/50 p-5 rounded-xl border border-gray-100">
+                        {mealPlan.plan}
+                    </div>
                 </div>
             )}
         </div>
-    )
+    );
 }

@@ -1,3 +1,5 @@
+server:
+  port: 8081
 spring:
   application:
     name: NutirGuideAI
@@ -8,10 +10,14 @@ spring:
     password: root
 
   jpa:
-    open-in-view: false
+
     hibernate:
       ddl-auto: update
     show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
 
   mail:
     host: localhost
@@ -51,6 +57,26 @@ ai:
   gemini:
     base-url: https://generativelanguage.googleapis.com/v1beta
     model: gemini-1.5-flash
-    api-key: ${GEMINI_API_KEY:test-key}
+    api-key: ${GCP_API_KEY}
     temperature: 0.4
     max-output-tokens: 4096
+
+  spring:
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+
+  app:
+
+    rabbitmq:
+    exchange: nutriguide.exchange
+    queue: notification.queue
+    routingkey: notification.routingkey

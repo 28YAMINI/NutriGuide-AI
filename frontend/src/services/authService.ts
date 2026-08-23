@@ -1,38 +1,34 @@
-import api, { rawApi } from './api'
+// src/services/authService.ts
+import { rawApi } from './api';
 
-import type {
-  LoginRequest,
-  LoginResponse,
-  LogoutRequest,
-  RefreshRequest,
-  RefreshResponse,
-  RegisterRequest,
-  RegisterResponse,
-} from '../types/auth'
-
-/** Authentication API calls — thin wrappers over the shared axios instance. */
 export const authService = {
-  async register(payload: RegisterRequest): Promise<RegisterResponse> {
-    const { data } = await api.post<RegisterResponse>('/auth/register', payload)
-    return data
+  login: async (credentials: { email: string; password: string }) => {
+    // Use rawApi for login to avoid sending stale tokens
+    const response = await rawApi.post('/auth/login', credentials);
+    if (response.data?.token) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user || response.data));
+    }
+    return response.data;
   },
 
-  async login(payload: LoginRequest): Promise<LoginResponse> {
-    const { data } = await api.post<LoginResponse>('/auth/login', payload)
-    return data
+  register: async (data: any) => {
+    return rawApi.post('/auth/register', data);
   },
 
-  /**
-   * Mints a new token pair. Runs on the bare instance (no interceptors)
-   * so a failed refresh can never loop back into itself.
-   */
-  async refresh(payload: RefreshRequest): Promise<RefreshResponse> {
-    const { data } = await rawApi.post<RefreshResponse>('/auth/refresh', payload)
-    return data
-  },
+  logout: async (payload?: { refreshToken?: string | null }) => {
+    try {
+      if (payload?.refreshToken) {
+        await rawApi.post('/auth/logout', payload);
+      }
+    } catch {
+      // Best-effort logout: ignore server errors if token is already invalidated
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+    }
+  }
+};
 
-  /** Revokes the presented refresh token server-side. */
-  async logout(payload: LogoutRequest): Promise<void> {
-    await rawApi.post('/auth/logout', payload)
-  },
-}
+export default authService;

@@ -9,5 +9,4 @@ public class NuriGuideAiApplication {
     public static void main(String[] args) {
         SpringApplication.run(NuriGuideAiApplication.class, args);
     }
-
 }

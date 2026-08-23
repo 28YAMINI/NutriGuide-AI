@@ -1,106 +1,89 @@
-import axios from 'axios'
-import { getToken, clearTokens } from '../utils/token'
+// File: src/services/api.ts
+
+import axios, {AxiosError, type InternalAxiosRequestConfig,} from 'axios';
+
+export const AUTH_UNAUTHORIZED_EVENT = 'auth:unauthorized';
+
+const BASE_URL = '/api';
 
 /**
- * Custom event dispatched when an authenticated request receives
- * a final 401 response.
+ * Robust token finder from all standard frontend storage locations
  */
-export const AUTH_UNAUTHORIZED_EVENT = 'nutriguide:unauthorized'
+export function getStoredToken(): string | null {
+    if (typeof window === 'undefined') return null;
 
-/**
- * Axios instance configured for the NutriGuide AI backend.
- *
- * - Base URL: /api (proxied by Vite in dev, nginx in prod)
- * - Request interceptor: attaches JWT from token.ts
- * - Response interceptor: handles authentication and server errors
- */
-const api = axios.create({
-    baseURL: '/api',
+    // 1. Check direct standard keys
+    const keys = ['token', 'accessToken', 'jwt', 'auth_token', 'access_token'];
+    for (const k of keys) {
+        const val = localStorage.getItem(k) || sessionStorage.getItem(k);
+        if (val) return val;
+    }
+
+    // 2. Check JSON state objects
+    try {
+        const rawAuth = localStorage.getItem('auth') || localStorage.getItem('user_session') || localStorage.getItem('user');
+        if (rawAuth) {
+            const parsed = JSON.parse(rawAuth);
+            return parsed.token || parsed.accessToken || parsed.jwt || parsed?.user?.token || null;
+        }
+    } catch {
+        // ignore parse error
+    }
+
+    return null;
+}
+
+export const rawApi = axios.create({
+    baseURL: BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
-})
+});
 
-// ─── Request Interceptor ─────────────────────────────────────────────────────
-
-api.interceptors.request.use(
-    (config) => {
-        const token = getToken()
-
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`
-        }
-
-        return config
+export const api = axios.create({
+    baseURL: BASE_URL,
+    headers: {
+        'Content-Type': 'application/json',
     },
-    (error) => Promise.reject(error),
-)
+});
 
-// ─── Response Interceptor ────────────────────────────────────────────────────
+// Request Interceptor: Attach Bearer token to EVERY request
+api.interceptors.request.use(
+    (config: InternalAxiosRequestConfig) => {
+        const rawToken = getStoredToken();
+        if (rawToken) {
+            // Clean token string in case it already contains quotes or "Bearer "
+            const cleanToken = rawToken.replace(/^Bearer\s+/i, '').replace(/^"|"$/g, '');
+            config.headers = config.headers || {};
+            config.headers.Authorization = `Bearer ${cleanToken}`;
+        } else {
+            console.warn(`[API] Making request to ${config.url} with NO token present in localStorage!`);
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
 
+// Response Interceptor: Only trigger global logout on specific auth check endpoints, not standard actions
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
-        const { response } = error
+    async (error: AxiosError) => {
+        const url = error.config?.url || '';
 
-        if (!response) {
-            console.error('[API] Network error — no response received')
-            return Promise.reject(error)
-        }
+        if (error.response?.status === 401) {
+            console.error(`[API] 401 Unauthorized received on ${url}`);
 
-        const { status } = response
-
-        switch (status) {
-            case 401: {
-                console.warn(
-                    '[API] 401 Unauthorized — clearing authentication state'
-                )
-
-                clearTokens()
-
-                window.dispatchEvent(
-                    new CustomEvent(AUTH_UNAUTHORIZED_EVENT)
-                )
-
-                if (!window.location.pathname.startsWith('/login')) {
-                    window.location.href = '/login'
+            // Only broadcast global unauthorized logout if it's the current user profile check (/users/me or /auth/me)
+            // This prevents minor 401s on other endpoints from abruptly kicking the user out to /login
+            if (url.includes('/users/me') || url.includes('/auth/me')) {
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT));
                 }
-
-                break
             }
-
-            case 403: {
-                console.warn(
-                    '[API] 403 Forbidden — insufficient permissions'
-                )
-                break
-            }
-
-            case 500: {
-                console.error('[API] 500 Internal Server Error')
-                break
-            }
-
-            default:
-                break
         }
 
-        return Promise.reject(error)
-    },
-)
+        return Promise.reject(error);
+    }
+);
 
-/**
- * Bare axios instance without the authentication interceptor.
- *
- * Used for refresh and logout operations.
- */
-const rawApi = axios.create({
-    baseURL: '/api',
-    headers: {
-        'Content-Type': 'application/json',
-    },
-})
-
-export { rawApi }
-
-export default api
+export default api;

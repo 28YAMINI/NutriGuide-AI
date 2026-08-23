@@ -1,32 +1,29 @@
+// backend/src/main/java/com/nutriguideai/dto/request/MealPlanRequest.java
 package com.nutriguideai.dto.request;
 
-import com.nutriguideai.ai.MealPlanFocus;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.nutriguideai.enums.MealPlanFocus;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
-@Getter
-@Setter
+@Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class MealPlanRequest {
 
-    @NotNull(message = "days is required")
-    @Min(1)
-    @Max(7)
+    @Min(1) @Max(7)
+    @JsonProperty("days")
     private Integer days;
 
-    @NotNull(message = "mealsPerDay is required")
-    @Min(2)
-    @Max(6)
+    @Min(2) @Max(6)
+    @JsonProperty("mealsPerDay")
     private Integer mealsPerDay;
 
-    /** Optional; defaults to DAILY in the service. */
+    @JsonProperty("focus")
     private MealPlanFocus focus;
 }

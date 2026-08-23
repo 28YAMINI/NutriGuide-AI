@@ -1,56 +1,38 @@
-import api from './api'
+// frontend/src/services/mealPlanService.ts
+import api from './api';
 
-export type MealPlanFocus = 'DAILY' | 'WEEKLY' | 'GROCERY'
-
-export interface MealPlanDetailResponse {
-    id: number
-    planDate: string
-    totalCalories: number
-    totalProteinG: number
-    totalCarbsG: number
-    totalFatG: number
-    plan: string
-    generatedAt: string
-}
-
-export interface MealPlanHistoryResponse {
-    plans: MealPlanDetailResponse[]
-    total: number
+export interface MealPlanRequest {
+    days: number;
+    mealsPerDay: number;
+    focus?: string;
 }
 
 export const mealPlanService = {
-    generate(request: {
-        days: number
-        mealsPerDay: number
-        focus: MealPlanFocus
-    }): Promise<MealPlanDetailResponse> {
-        return api
-            .post<MealPlanDetailResponse>('/ai/meal-plan', request)
-            .then((r) => r.data)
+    // Gracefully return null on 404 instead of throwing a loud console error
+    getByDate: async (dateStr: string) => {
+        try {
+            const response = await api.get(`/meal-plans?date=${dateStr}`);
+            return response.data;
+        } catch (error: any) {
+            if (error.response && error.response.status === 404) {
+                // No meal plan created yet for this date — completely normal state
+                return null;
+            }
+            throw error;
+        }
     },
 
-    getByDate(date: string): Promise<MealPlanDetailResponse> {
-        return api
-            .get<MealPlanDetailResponse>('/meal-plans', {
-                params: { date },
-            })
-            .then((r) => r.data)
+    generate: async (data: MealPlanRequest) => {
+        const response = await api.post('/meal-plans/generate', data);
+        return response.data;
     },
 
-    getById(id: number): Promise<MealPlanDetailResponse> {
-        return api
-            .get<MealPlanDetailResponse>(`/meal-plans/${id}`)
-            .then((r) => r.data)
+    getAll: async () => {
+        try {
+            const response = await api.get('/meal-plans');
+            return response.data || [];
+        } catch (error) {
+            return [];
+        }
     },
-
-    getHistory(
-        from: string,
-        to: string,
-    ): Promise<MealPlanHistoryResponse> {
-        return api
-            .get<MealPlanHistoryResponse>('/meal-plans/history', {
-                params: { from, to },
-            })
-            .then((r) => r.data)
-    },
-}
+};

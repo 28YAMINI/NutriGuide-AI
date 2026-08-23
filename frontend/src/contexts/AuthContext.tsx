@@ -3,13 +3,7 @@ import type { ReactNode } from 'react'
 
 import api, { AUTH_UNAUTHORIZED_EVENT } from '../services/api'
 import { authService } from '../services/authService'
-import {
-  clearTokens,
-  getRefreshToken,
-  hasToken,
-  setRefreshToken,
-  setToken,
-} from '../utils/token'
+import { clearTokens, getRefreshToken, hasToken } from '../utils/token'
 
 import type { LoginRequest, RegisterRequest } from '../types/auth'
 import type { UserResponse } from '../types/user'
@@ -35,12 +29,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUserState] = useState<UserResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  const login = useCallback(async (payload: LoginRequest) => {
-    const response = await authService.login(payload)
-    setToken(response.token)
-    setRefreshToken(response.refreshToken)
-    setUserState(response.user)
+  const setUser = useCallback((nextUser: UserResponse | null) => {
+    setUserState(nextUser)
   }, [])
+
+  const login = useCallback(async (credentials: LoginRequest) => {
+    const data = await authService.login(credentials)
+    if (data.token) {
+      localStorage.setItem('token', data.token)
+    }
+    if (data.refreshToken) {
+      localStorage.setItem('refreshToken', data.refreshToken)
+    }
+    setUser(data.user || data)
+  }, [setUser])
 
   const register = useCallback(async (payload: RegisterRequest) => {
     // Backend returns no token on registration — the user signs in next.
@@ -50,18 +52,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = useCallback(() => {
     const refreshToken = getRefreshToken()
 
-    // Best-effort server-side revocation; ignore failures (the token may
-    // already be revoked/expired — local cleanup still happens).
+    // Best-effort server-side revocation; local cleanup still happens.
     if (refreshToken) {
       authService.logout({ refreshToken }).catch(() => undefined)
+    } else {
+      authService.logout().catch(() => undefined)
     }
 
     clearTokens()
     setUserState(null)
-  }, [])
-
-  const setUser = useCallback((nextUser: UserResponse | null) => {
-    setUserState(nextUser)
   }, [])
 
   // Session restore: a stored token means the user may still be signed
