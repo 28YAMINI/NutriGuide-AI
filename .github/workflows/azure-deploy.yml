@@ -26,7 +26,7 @@ jobs:
 
       - name: Build with Maven
         working-directory: backend
-        run: mvn clean package -DskipTests
+        run: mvn clean package -Dmaven.test.skip=true
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
