@@ -1,11 +1,10 @@
 package com.nutriguideai.service.impl;
 
-
-
-
 import com.nutriguideai.dto.request.UpdateUserRequest;
 import com.nutriguideai.dto.response.UserResponse;
 import com.nutriguideai.entity.User;
+import com.nutriguideai.enums.Role;
+import com.nutriguideai.exception.IllegalOperationException;
 import com.nutriguideai.exception.ResourceNotFoundException;
 import com.nutriguideai.exception.UnauthorizedException;
 import com.nutriguideai.repository.UserRepository;
@@ -16,6 +15,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -53,7 +54,6 @@ public class UserServiceImpl implements UserService {
         return UserResponse.fromEntity(user);
     }
 
-
     @Override
     @Transactional
     public UserResponse updateProfile(UpdateUserRequest request) {
@@ -84,6 +84,35 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
         userRepository.delete(user);
         log.info("Deleted user {} successfully", id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserResponse> listUsers() {
+        log.debug("Admin listing all users");
+        return userRepository.findAll().stream()
+                .map(UserResponse::fromEntity)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public UserResponse updateUserRole(Long id, Role role) {
+        log.debug("Admin changing role of user {} to {}", id, role);
+        User target = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+
+        String currentEmail = currentUserEmail();
+        User current = userRepository.findByEmail(currentEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", currentEmail));
+
+        if (current.getId().equals(target.getId())) {
+            throw new IllegalOperationException("You cannot change your own role");
+        }
+
+        target.setRole(role);
+        log.info("Role of user {} changed to {}", id, role);
+        return UserResponse.fromEntity(target);
     }
 
     /** Identity ALWAYS comes from the JWT principal, never from client input. */

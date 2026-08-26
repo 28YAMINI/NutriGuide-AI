@@ -1,61 +1,106 @@
 import axios from 'axios'
-import type { AxiosError } from 'axios'
-
-
-import { getToken } from '../utils/token'
-import type { ApiErrorResponse } from '../types/api.types'
-
-/** Fired when a protected request returns 401 — AuthContext listens and logs out. */
-export const AUTH_UNAUTHORIZED_EVENT = 'auth:unauthorized'
+import { getToken, clearTokens } from '../utils/token'
 
 /**
- * Shared axios instance for all API calls.
+ * Custom event dispatched when an authenticated request receives
+ * a final 401 response.
+ */
+export const AUTH_UNAUTHORIZED_EVENT = 'nutriguide:unauthorized'
+
+/**
+ * Axios instance configured for the NutriGuide AI backend.
  *
- * The request interceptor attaches the JWT when present. The response
- * interceptor centralizes error handling: 401s on protected endpoints
- * signal an expired/invalid session; every rejection is unwrapped via
- * getApiErrorMessage().
+ * - Base URL: /api (proxied by Vite in dev, nginx in prod)
+ * - Request interceptor: attaches JWT from token.ts
+ * - Response interceptor: handles authentication and server errors
  */
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api',
-  timeout: 10_000,
-  headers: { 'Content-Type': 'application/json' },
+    baseURL: '/api',
+    headers: {
+        'Content-Type': 'application/json',
+    },
 })
 
-api.interceptors.request.use((config) => {
-  const token = getToken()
+// ─── Request Interceptor ─────────────────────────────────────────────────────
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
+api.interceptors.request.use(
+    (config) => {
+        const token = getToken()
 
-  return config
-})
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`
+        }
 
-api.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError<ApiErrorResponse>) => {
-    const status = error.response?.status
-
-    // Login/register legitimately return 401 (bad credentials) — don't
-    // treat those as a session expiry.
-    const isAuthRequest = error.config?.url?.includes('/auth/') ?? false
-
-    if (status === 401 && !isAuthRequest) {
-      window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT))
-    }
-
-    return Promise.reject(error)
-  },
+        return config
+    },
+    (error) => Promise.reject(error),
 )
 
-/** Extracts a readable message from any failed request. */
-export function getApiErrorMessage(error: unknown): string {
-  if (axios.isAxiosError<ApiErrorResponse>(error)) {
-    return error.response?.data?.message ?? error.message
-  }
+// ─── Response Interceptor ────────────────────────────────────────────────────
 
-  return error instanceof Error ? error.message : 'Something went wrong'
-}
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        const { response } = error
+
+        if (!response) {
+            console.error('[API] Network error — no response received')
+            return Promise.reject(error)
+        }
+
+        const { status } = response
+
+        switch (status) {
+            case 401: {
+                console.warn(
+                    '[API] 401 Unauthorized — clearing authentication state'
+                )
+
+                clearTokens()
+
+                window.dispatchEvent(
+                    new CustomEvent(AUTH_UNAUTHORIZED_EVENT)
+                )
+
+                if (!window.location.pathname.startsWith('/login')) {
+                    window.location.href = '/login'
+                }
+
+                break
+            }
+
+            case 403: {
+                console.warn(
+                    '[API] 403 Forbidden — insufficient permissions'
+                )
+                break
+            }
+
+            case 500: {
+                console.error('[API] 500 Internal Server Error')
+                break
+            }
+
+            default:
+                break
+        }
+
+        return Promise.reject(error)
+    },
+)
+
+/**
+ * Bare axios instance without the authentication interceptor.
+ *
+ * Used for refresh and logout operations.
+ */
+const rawApi = axios.create({
+    baseURL: '/api',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+})
+
+export { rawApi }
 
 export default api

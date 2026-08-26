@@ -1,16 +1,19 @@
-import AppRoutes from './routes/AppRoutes'
+import { BrowserRouter } from 'react-router-dom'
 
-/**
- * Root component of NutriGuide AI.
- *
- * Provides the base application layout and global semantic styling.
- * The routing layer will be rendered inside this component.
- */
-export default function App() {
-  return (
-    <main className="min-h-screen bg-background text-foreground antialiased">
-      <AppRoutes />
-    </main>
-  );
+import { AppRoutes } from './routes/AppRoutes'
+import { AuthProvider } from './contexts/AuthContext'
+import { ThemeProvider } from './contexts/ThemeContext'
+
+function App() {
+    return (
+        <BrowserRouter>
+            <ThemeProvider>
+                <AuthProvider>
+                    <AppRoutes />
+                </AuthProvider>
+            </ThemeProvider>
+        </BrowserRouter>
+    )
 }
 
+export default App

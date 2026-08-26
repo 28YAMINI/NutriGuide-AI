@@ -13,9 +13,15 @@ export const routePaths = {
 
   /** Protected — requires authentication */
   dashboard: '/dashboard',
+  mealPlan: '/meal-plan',
+  foodDiary: '/food-diary',
+  progress: '/progress',
+  onboarding: '/onboarding',
   foods: '/foods',
   foodDetails: '/foods/:id',
   profile: '/profile',
+
+  /** Protected — new pages */
 
   /** Protected — ADMIN only (future: /admin/foods, /admin/users) */
   admin: '/admin',

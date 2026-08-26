@@ -1,0 +1,854 @@
+{
+  "info": {
+    "name": "NutriGuide AI",
+    "description": "Postman collection for the NutriGuide AI Spring Boot backend (Auth, Users, Foods). Generated from the actual controllers, DTOs, SecurityConfig and GlobalExceptionHandler. Run order: 1) Authentication (Register, Login, Login Admin) 2) Users 3) Foods - Public 4) Foods - Admin (Create Food first so foodId is captured) 5) Authorization Tests. JWT tokens and ids are captured automatically after login and food creation. Every error response from this backend has the shape { timestamp, status, error, message, path }.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "Public endpoints. 'Register' creates the USER and captures userId. 'Login (User)' captures the JWT into the 'token' variable. 'Login (Admin)' captures the admin JWT into 'adminToken' (the ADMIN account must be seeded in the database first).",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains message and user profile\", function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property(\"message\");",
+                  "  pm.expect(json).to.have.property(\"user\");",
+                  "  pm.expect(json.user).to.have.property(\"id\");",
+                  "  pm.expect(json.user).to.have.property(\"email\", pm.environment.get(\"userEmail\"));",
+                  "  pm.expect(json.user).to.have.property(\"role\", \"USER\");",
+                  "  pm.expect(json.user).to.not.have.property(\"password\");",
+                  "});",
+                  "",
+                  "pm.test(\"Capture userId\", function () {",
+                  "  const json = pm.response.json();",
+                  "  if (json.user && json.user.id) {",
+                  "    pm.environment.set(\"userId\", String(json.user.id));",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Test\",\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\",\n  \"age\": 25,\n  \"gender\": \"FEMALE\",\n  \"height\": 163,\n  \"weight\": 58,\n  \"activityLevel\": \"ACTIVE\",\n  \"goal\": \"LOSE_WEIGHT\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login (User)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"JWT token is present in the response\", function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property(\"token\");",
+                  "  pm.expect(json.token).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(json).to.have.property(\"tokenType\", \"Bearer\");",
+                  "  pm.expect(json).to.have.property(\"user\");",
+                  "});",
+                  "",
+                  "pm.test(\"Save JWT token, user email and userId\", function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set(\"token\", json.token);",
+                  "  if (json.user && json.user.email) {",
+                  "    pm.environment.set(\"userEmail\", json.user.email);",
+                  "  }",
+                  "  if (json.user && json.user.id) {",
+                  "    pm.environment.set(\"userId\", String(json.user.id));",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"JWT token is present in the response\", function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property(\"token\");",
+                  "  pm.expect(json.token).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test(\"Save admin JWT token\", function () {",
+                  "  pm.environment.set(\"adminToken\", pm.response.json().token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "Authenticated endpoints (Bearer {{token}}). Only the logged-in user can access these; no token results in 401.",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Profile contains the expected fields\", function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property(\"id\");",
+                  "  pm.expect(json).to.have.property(\"firstName\");",
+                  "  pm.expect(json).to.have.property(\"email\", pm.environment.get(\"userEmail\"));",
+                  "  pm.expect(json).to.have.property(\"role\");",
+                  "  pm.expect(json).to.not.have.property(\"password\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Updated profile is returned\", function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property(\"firstName\", \"Alice\");",
+                  "  pm.expect(json).to.have.property(\"lastName\", \"Test\");",
+                  "  pm.expect(json).to.have.property(\"age\", 26);",
+                  "  pm.expect(json).to.have.property(\"goal\", \"LOSE_WEIGHT\");",
+                  "  pm.expect(json).to.not.have.property(\"password\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Test\",\n  \"age\": 26,\n  \"gender\": \"FEMALE\",\n  \"height\": 164,\n  \"weight\": 57,\n  \"activityLevel\": \"ACTIVE\",\n  \"goal\": \"LOSE_WEIGHT\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Foods - Public",
+      "description": "Read-only endpoints. No authentication required for GET /api/foods/**.",
+      "item": [
+        {
+          "name": "Get All Foods",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array of foods\", function () {",
+                  "  pm.expect(pm.response.json()).to.be.an(\"array\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/foods",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "foods"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Food By ID",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const foodId = pm.environment.get(\"foodId\");",
+                  "if (!foodId) {",
+                  "  throw new Error(\"foodId is not set. Run 'Create Food' in the Foods - Admin folder first, or set foodId manually in the environment.\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Food contains the expected fields\", function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property(\"id\");",
+                  "  pm.expect(json).to.have.property(\"name\");",
+                  "  pm.expect(json).to.have.property(\"category\");",
+                  "  pm.expect(json).to.have.property(\"calories\");",
+                  "  pm.expect(json).to.have.property(\"servingSize\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/foods/{{foodId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "foods",
+                "{{foodId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Foods",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array\", function () {",
+                  "  pm.expect(pm.response.json()).to.be.an(\"array\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/foods/search?name={{searchName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "foods",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "{{searchName}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Foods By Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"All returned foods match the requested category\", function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.be.an(\"array\");",
+                  "  const expected = pm.environment.get(\"category\");",
+                  "  json.forEach(function (food) {",
+                  "    pm.expect(food.category).to.eql(expected);",
+                  "  });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/foods/category/{{category}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "foods",
+                "category",
+                "{{category}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Foods - Admin",
+      "description": "Write endpoints. POST/PUT/DELETE /api/foods/** require the ADMIN role (Bearer {{adminToken}}). A regular USER gets 403.",
+      "item": [
+        {
+          "name": "Create Food",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const adminToken = pm.environment.get(\"adminToken\");",
+                  "if (!adminToken) {",
+                  "  throw new Error(\"adminToken is not set. Run 'Login (Admin)' in the Authentication folder first, and make sure the ADMIN account is seeded in the database.\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Food is created with the expected fields\", function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property(\"id\");",
+                  "  pm.expect(json).to.have.property(\"name\", \"Apple\");",
+                  "  pm.expect(json).to.have.property(\"category\", \"FRUITS\");",
+                  "  pm.expect(json).to.have.property(\"calories\", 52);",
+                  "  pm.expect(json).to.have.property(\"vegetarian\", true);",
+                  "});",
+                  "",
+                  "pm.test(\"Capture foodId\", function () {",
+                  "  const json = pm.response.json();",
+                  "  if (json.id) {",
+                  "    pm.environment.set(\"foodId\", String(json.id));",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Apple\",\n  \"description\": \"Fresh red apple\",\n  \"category\": \"FRUITS\",\n  \"calories\": 52,\n  \"protein\": 0.3,\n  \"carbohydrates\": 14,\n  \"fat\": 0.2,\n  \"fiber\": 2.4,\n  \"servingSize\": \"100g\",\n  \"imageUrl\": \"https://example.com/apple.jpg\",\n  \"vegetarian\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/foods",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "foods"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Food",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const foodId = pm.environment.get(\"foodId\");",
+                  "const adminToken = pm.environment.get(\"adminToken\");",
+                  "if (!foodId) {",
+                  "  throw new Error(\"foodId is not set. Run 'Create Food' in the Foods - Admin folder first.\");",
+                  "}",
+                  "if (!adminToken) {",
+                  "  throw new Error(\"adminToken is not set. Run 'Login (Admin)' in the Authentication folder first.\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Updated food is returned\", function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property(\"id\", Number(pm.environment.get(\"foodId\")));",
+                  "  pm.expect(json).to.have.property(\"name\", \"Apple\");",
+                  "  pm.expect(json).to.have.property(\"category\", \"FRUITS\");",
+                  "  pm.expect(json).to.have.property(\"calories\", 52);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Apple\",\n  \"description\": \"Fresh red apple (updated)\",\n  \"category\": \"FRUITS\",\n  \"calories\": 52,\n  \"protein\": 0.3,\n  \"carbohydrates\": 14,\n  \"fat\": 0.2,\n  \"fiber\": 2.4,\n  \"servingSize\": \"100g\",\n  \"imageUrl\": \"https://example.com/apple.jpg\",\n  \"vegetarian\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/foods/{{foodId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "foods",
+                "{{foodId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Food",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const foodId = pm.environment.get(\"foodId\");",
+                  "const adminToken = pm.environment.get(\"adminToken\");",
+                  "if (!foodId) {",
+                  "  throw new Error(\"foodId is not set. Run 'Create Food' in the Foods - Admin folder first.\");",
+                  "}",
+                  "if (!adminToken) {",
+                  "  throw new Error(\"adminToken is not set. Run 'Login (Admin)' in the Authentication folder first.\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 204 No Content\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/foods/{{foodId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "foods",
+                "{{foodId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authorization Tests",
+      "description": "Verifies the backend security rules: unauthenticated requests get 401, a regular USER calling an ADMIN-only endpoint gets 403. All error responses use the standard shape { timestamp, status, error, message, path }.",
+      "item": [
+        {
+          "name": "Request Without Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 401 Unauthorized\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"ErrorResponse has all 5 fields\", function () {",
+                  "  const body = pm.response.json();",
+                  "  [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(function (field) {",
+                  "    pm.expect(body).to.have.property(field);",
+                  "  });",
+                  "  pm.expect(body.status).to.eql(401);",
+                  "  pm.expect(body.error).to.eql(\"Unauthorized\");",
+                  "  pm.expect(body.message).to.eql(\"Authentication is required.\");",
+                  "  pm.expect(body.path).to.eql(\"/api/users/me\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Invalid Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 401 Unauthorized\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"ErrorResponse has all 5 fields\", function () {",
+                  "  const body = pm.response.json();",
+                  "  [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(function (field) {",
+                  "    pm.expect(body).to.have.property(field);",
+                  "  });",
+                  "  pm.expect(body.status).to.eql(401);",
+                  "  pm.expect(body.error).to.eql(\"Unauthorized\");",
+                  "  pm.expect(body.message).to.eql(\"Authentication is required.\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "invalid-token-123",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "USER Trying Admin Operation",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const token = pm.environment.get(\"token\");",
+                  "if (!token) {",
+                  "  throw new Error(\"token is not set. Run 'Login (User)' in the Authentication folder first.\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 403 Forbidden\", function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"ErrorResponse has all 5 fields\", function () {",
+                  "  const body = pm.response.json();",
+                  "  [\"timestamp\", \"status\", \"error\", \"message\", \"path\"].forEach(function (field) {",
+                  "    pm.expect(body).to.have.property(field);",
+                  "  });",
+                  "  pm.expect(body.status).to.eql(403);",
+                  "  pm.expect(body.error).to.eql(\"Forbidden\");",
+                  "  pm.expect(body.message).to.eql(\"You do not have permission to access this resource.\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Orange\",\n  \"description\": \"Fresh orange\",\n  \"category\": \"FRUITS\",\n  \"calories\": 47,\n  \"protein\": 0.9,\n  \"carbohydrates\": 11.8,\n  \"fat\": 0.1,\n  \"fiber\": 2.4,\n  \"servingSize\": \"100g\",\n  \"imageUrl\": \"https://example.com/orange.jpg\",\n  \"vegetarian\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/foods",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "foods"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

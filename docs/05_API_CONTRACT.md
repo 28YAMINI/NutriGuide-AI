@@ -1934,5 +1934,16 @@ Soft-deletes a food item from the catalog.
 | 1.0         | 2026-07-27   | Architect  | Initial draft        |
 
 ---
+### AI Nutrition APIs  (all require Bearer JWT)
 
+POST /api/ai/chat
+Body:  { "message": "What should I eat for dinner?" }
+200:   { "reply": "...", "model": "gemini-2.5-flash", "generatedAt": "..." }
+400:   validation error | 401: unauthenticated | 404: complete health profile first
+502:   AI_SERVICE_UNAVAILABLE
+
+POST /api/ai/meal-plan
+Body:  { "days": 7, "mealsPerDay": 4, "focus": "DAILY|WEEKLY|GROCERY" }
+200:   { "plan": "markdown...", "model": "...", "generatedAt": "..." }
+Same error codes as /chat.
 *End of Document — 05_API_CONTRACT.md*
